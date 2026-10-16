@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f5ef" />
+    <meta
+      name="description"
+      content="Turn a video link into something everyone can watch."
+    />
+    <title>share.to — Good videos deserve company.</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="share.to home"
+        ><span class="brand-mark">↗</span> share<span class="brand-dot">.</span
+        >to</a
+      ><span class="header-note"
+        ><span class="status-dot"></span> YOUR VIDEOS. YOUR SERVER.</span
+      >
+    </header>
+    <main class="home">
+      <section class="hero">
+        <div class="eyebrow">
+          <span class="little-line"></span> LESS FRICTION. MORE SHARING.
+        </div>
+        <h1>
+          Good videos<br />deserve <span class="serif">company.</span
+          ><span class="hero-star" aria-hidden="true">✳</span>
+        </h1>
+        <p class="intro">
+          Found something worth watching? Drop the link.<br
+            class="desktop-break"
+          />
+          We’ll make it easy for everyone to press play.
+        </p>
+        <form id="share-form" class="submit-panel">
+          <label for="video-url">ONE LINK IN. ONE BETTER LINK OUT.</label>
+          <div class="input-row">
+            <span class="link-icon" aria-hidden="true">↗</span
+            ><input
+              id="video-url"
+              name="url"
+              type="url"
+              inputmode="url"
+              placeholder="Paste a video link here…"
+              required
+              maxlength="4096"
+              autocomplete="off"
+              aria-describedby="form-error"
+            /><button type="submit" id="submit-button">
+              Make it shareable <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+          <p id="form-error" class="error" role="alert" hidden></p>
+          <div class="form-foot">
+            <span>No platform account needed to watch.</span
+            ><span id="limits">One video at a time.</span>
+          </div>
+        </form>
+        <div class="platforms">
+          <span>FROM YOUR CORNER OF THE INTERNET</span>
+          <div>
+            <b>YouTube</b><b>Instagram</b><b class="x-brand">𝕏</b><b>Facebook</b
+            ><b>TikTok</b><span>+ more</span>
+          </div>
+        </div>
+      </section>
+      <section
+        class="result-panel"
+        id="current-share"
+        aria-live="polite"
+        hidden
+      ></section>
+      <section class="steps" aria-label="How it works">
+        <article>
+          <span class="step-number">01 /</span>
+          <h2>Find a good one.</h2>
+          <p>
+            A clip, a reel, a little rabbit hole. <br />Copy its original link.
+          </p>
+        </article>
+        <article>
+          <span class="step-number">02 /</span>
+          <h2>Leave the app behind.</h2>
+          <p>
+            We save the video here, ready <br />to watch in a regular browser.
+          </p>
+        </article>
+        <article>
+          <span class="step-number">03 /</span>
+          <h2>Pass it along.</h2>
+          <p>Send your new link. They press play. <br />No sign-up detours.</p>
+        </article>
+      </section>
+      <section class="recent-section">
+        <div class="section-heading">
+          <h2>Your recent shares <span id="recent-count">0</span></h2>
+          <span>ON THIS BROWSER</span>
+        </div>
+        <div id="recent-list">
+          <div class="empty-state">
+            <span aria-hidden="true">↗</span>
+            <p>Your next “you have to see this” goes here.</p>
+          </div>
+        </div>
+        <p class="local-note">
+          Your history and deletion controls stay in this browser. Anyone with a
+          share link can watch.
+        </p>
+      </section>
+    </main>
+    <footer>
+      <a class="brand small" href="/">share<span class="brand-dot">.</span>to</a
+      ><span>A little less platform. A little more connection.</span
+      ><span>SELF-HOSTED &amp; SIMPLE</span>
+    </footer>
+  </body>
+</html>

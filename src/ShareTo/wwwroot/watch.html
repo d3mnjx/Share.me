@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f5ef" />
+    <title>A video for you — share.to</title>
+    <!-- SHARE_META -->
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/watch.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/"
+        ><span class="brand-mark">↗</span> share<span class="brand-dot">.</span
+        >to</a
+      ><a href="/" class="header-link"
+        >Share another video <span aria-hidden="true">↗</span></a
+      >
+    </header>
+    <main class="watch-main">
+      <div class="eyebrow">
+        <span class="little-line"></span> SOMEONE THOUGHT YOU’D LIKE THIS.
+      </div>
+      <h1 id="video-title">A video for you.</h1>
+      <div id="watch-status" class="watch-status" role="status">
+        Loading your video…
+      </div>
+      <video id="player" controls playsinline preload="metadata" hidden></video>
+      <div id="watch-details" hidden>
+        <div class="video-details">
+          <span id="video-info"></span
+          ><a id="source-link" target="_blank" rel="noopener noreferrer"
+            >View original ↗</a
+          >
+        </div>
+        <div class="watch-actions">
+          <button id="copy-share">Copy share link ↗</button
+          ><button class="secondary" id="copy-direct">Copy direct link</button
+          ><a class="button secondary" id="download-link">Download video ↓</a>
+        </div>
+        <p id="copy-status" class="copy-status" role="status"></p>
+      </div>
+      <p class="watch-footnote">
+        Saved here. Ready to watch. No platform account needed.
+      </p>
+    </main>
+    <footer>
+      <a class="brand small" href="/">share<span class="brand-dot">.</span>to</a
+      ><span>Good videos deserve company.</span
+      ><span>SELF-HOSTED &amp; SIMPLE</span>
+    </footer>
+  </body>
+</html>
