@@ -80,12 +80,12 @@ public static class VideoApi
             var path = store.FilePath(id, "video.mp4");
             return File.Exists(path) ? Results.File(path, "video/mp4", fileDownloadName: $"share-me-{id}.mp4", enableRangeProcessing: true) : Results.NotFound();
         });
-        api.MapGet("/videos/{id}/poster", (string id, VideoStore store) =>
+        api.MapGet("/videos/{id}/poster", (string id, VideoStore store, IWebHostEnvironment environment) =>
         {
             if (store.Get(id) is not { } video) return Results.NotFound(new { error = "Video not found." });
             if (video.Status != "ready") return Results.Conflict(new { error = "The video is not ready." });
             var path = store.FilePath(id, "poster.jpg");
-            return File.Exists(path) ? Results.File(path, "image/jpeg") : Results.NotFound();
+            return File.Exists(path) ? Results.File(path, "image/jpeg") : Results.File(Path.Combine(environment.WebRootPath, "icon-180.png"), "image/png");
         });
     }
 }

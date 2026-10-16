@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -104,6 +105,13 @@ try:
     status, headers, _ = request(video['mediaUrl'] + '?download=1')
     assert status == 200 and 'attachment;' in headers['Content-Disposition']
     assert request(video['posterUrl'])[0] == 200
+    assert request(video['previewUrl'])[0] == 200
+    assert 8 < len(request(video['previewUrl'])[2]) <= 512 * 1024
+    assert request(video['previewUrl'], 'HEAD')[0] == 200
+    for agent in ['Signal-Desktop', 'facebookexternalhit/1.1', 'Slackbot-LinkExpanding 1.0', 'TelegramBot', 'WhatsApp/2', 'Applebot']:
+        card = Preview(request(video['shareUrl'], headers={'User-Agent': agent})[2])
+        assert card.meta['og:image'] == 'https://share.example' + video['previewUrl']
+        assert card.meta['og:title'] == video['title']
     assert request(video['shareUrl'])[0] == 200
     assert b'https://share.example/m/' in request(video['shareUrl'])[2]
     preview = Preview(request(video['shareUrl'])[2])
@@ -111,8 +119,8 @@ try:
     assert preview.meta['og:description'] == 'A sample description with "quotes" & details.'
     assert preview.meta['author'] == 'Sample author'
     assert preview.canonical == preview.meta['og:url'] == 'https://share.example' + video['shareUrl']
-    assert preview.meta['og:image'] == preview.meta['og:image:secure_url'] == preview.meta['twitter:image'] == 'https://share.example' + video['posterUrl']
-    assert preview.meta['og:image:type'] == 'image/jpeg' and preview.meta['og:image:width'] == '640' and preview.meta['og:image:height'] == '360'
+    assert preview.meta['og:image'] == preview.meta['og:image:secure_url'] == preview.meta['twitter:image'] == 'https://share.example' + video['previewUrl']
+    assert preview.meta['og:image:type'] == 'image/jpeg' and preview.meta['og:image:width'] == '1200' and preview.meta['og:image:height'] == '630'
     assert preview.meta['og:video:width'] == '320' and preview.meta['og:video:height'] == '180'
     assert preview.meta['og:video:secure_url'] == 'https://share.example' + video['mediaUrl']
     assert preview.meta['twitter:card'] == 'summary_large_image'
@@ -197,12 +205,32 @@ try:
     start()
     legacy_page = Preview(request(unknown['shareUrl'], headers={'Host': 'share.example:7543', 'X-Forwarded-Host': 'untrusted.invalid', 'X-Forwarded-Proto': 'https'})[2])
     assert legacy_page.meta['og:url'] == 'http://share.example:7543' + unknown['shareUrl']
-    assert legacy_page.meta['og:image'] == 'http://share.example:7543' + unknown['posterUrl']
+    assert legacy_page.meta['og:image'].startswith('http://share.example:7543/preview/')
     assert 'og:image:secure_url' not in legacy_page.meta
     assert legacy_page.meta['og:description'].startswith('Video from example.com.')
     assert request('/api/v1/videos', headers=auth)[0] == 503
     assert request('/api/videos/' + unknown['id'])[0] == 200
     print('PASS legacy records, request-origin preview fallback and disabled-token API with public UI', flush=True)
+    # Simulate an ffmpeg thumbnail failure while real transcoding still works.
+    stop()
+    wrappers = work / 'wrappers'
+    wrappers.mkdir()
+    real_ffmpeg = shutil.which('ffmpeg')
+    wrapper = wrappers / 'ffmpeg'
+    wrapper.write_text('#!/usr/bin/env python3\nimport os,sys\nif "-frames:v" in sys.argv: sys.exit(1)\nos.execv(' + repr(real_ffmpeg) + ', [' + repr(real_ffmpeg) + '] + sys.argv[1:])\n')
+    wrapper.chmod(0o755)
+    env['PATH'] = str(wrappers) + os.pathsep + os.environ['PATH']
+    start()
+    without_preview = wait(submit('poster-failure'))
+    assert without_preview['status'] == 'ready', without_preview
+    assert request(without_preview['mediaUrl'])[0] == 200
+    fallback_card = Preview(request(without_preview['shareUrl'])[2])
+    assert fallback_card.meta['og:image'] == base + '/icon-180.png'
+    assert fallback_card.meta['og:image:type'] == 'image/png'
+    assert fallback_card.meta['twitter:card'] == 'summary'
+    assert request(without_preview['posterUrl'])[1]['Content-Type'] == 'image/png'
+    assert request('/icon-180.png')[0] == 200
+    print('PASS optional preview failures retain playable downloads and fall back to a raster icon', flush=True)
 finally:
     stop()
     log.flush(); log.seek(0)

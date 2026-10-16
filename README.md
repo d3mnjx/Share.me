@@ -11,11 +11,23 @@ The token-authenticated integration API supports submission, polling, listing, d
 ## Run
 
 ```sh
+docker run -d --name share-me --restart unless-stopped \
+  -p 7543:8080 \
+  -v shareme-data:/data \
+  -e API_TOKEN='replace-with-a-long-random-token' \
+  ghcr.io/d3mnjx/share.me:latest
+```
+
+Open **http://localhost:7543**. The public image supports Linux AMD64 and ARM64. Set `API_TOKEN` to your own random value if you use the integration API; the UI stays open. Existing Compose users should retain their current `DATA_VOLUME` when switching deployments.
+
+To build from source instead:
+
+```sh
 cp .env.example .env
 docker compose up -d --build
 ```
 
-Open **http://localhost:8080**. Anyone who can reach the app can submit videos; there is no login. Share links look like `/s/012345…`, and direct video links like `/m/012345….mp4`.
+Source Compose defaults to **http://localhost:8080**. Anyone who can reach the app can submit videos; there is no login. Share links look like `/s/012345…`, and direct video links like `/m/012345….mp4`.
 
 For sharing outside your network, point your domain at an HTTPS reverse proxy in front of port 8080 and set `PUBLIC_URL=https://your-domain.example` in `.env`. Re-run `docker compose up -d` after changing configuration. `PUBLIC_URL` supplies absolute social-preview URLs; the copy buttons use the address you opened in your browser. It does not register a domain or make a private server publicly accessible. If your reverse proxy runs on the host, set `BIND_ADDRESS=127.0.0.1` to expose the app through that proxy only.
 
@@ -101,3 +113,9 @@ Yap was inspected at commit `b5ff08be322391db168421aa5d6eb2568e2bd89c`. Its medi
 ## Upgrading from share.to
 
 Keep the original Docker volume and set `DATA_VOLUME=shareto_share-data` in `.env` before starting Share.me. Stop the original container first so the new container can bind to the same port. Existing share URLs and video records stay valid. Browser history and deletion tokens are read from the original storage key and migrated on the next history update; use the same host and port to retain access to that browser storage.
+
+## Container releases
+
+[GitHub Actions](https://github.com/d3mnjx/Share.me/actions/workflows/container.yml) runs the integration suite and publishes `ghcr.io/d3mnjx/share.me` for AMD64 and ARM64. Pushes to `main` update `latest`; each published commit also receives a `sha-…` tag. Tags such as `v1.0.0` publish the corresponding version tag. Pull requests run tests without publishing. The workflow uses GitHub's built-in `GITHUB_TOKEN` with package-write permission; no registry password secret is required.
+
+See [preview research and fallbacks](docs/link-previews.md) for the Signal, Apple Messages, Slack, and Open Graph compatibility work.

@@ -29,7 +29,8 @@ public sealed class AppSettings
 
 public sealed record Video(string Id, string SourceUrl, string DeleteHash, DateTimeOffset CreatedAt,
     string Status = "queued", string? Title = null, double Progress = 0, string? Error = null, long Bytes = 0, double Duration = 0,
-    string? Description = null, string? Author = null, int Width = 0, int Height = 0, int PosterWidth = 0, int PosterHeight = 0)
+    string? Description = null, string? Author = null, int Width = 0, int Height = 0, int PosterWidth = 0, int PosterHeight = 0,
+    string? PreviewHash = null)
 {
     public object Public() => new
     {
@@ -48,7 +49,8 @@ public sealed record Video(string Id, string SourceUrl, string DeleteHash, DateT
         Height,
         shareUrl = $"/s/{Id}",
         mediaUrl = Status == "ready" ? $"/m/{Id}.mp4" : null,
-        posterUrl = Status == "ready" ? $"/p/{Id}.jpg" : null
+        posterUrl = Status == "ready" ? $"/p/{Id}.jpg" : null,
+        previewUrl = Status == "ready" && PreviewHash is not null ? $"/preview/{Id}/{PreviewHash}.jpg" : null
     };
 }
 

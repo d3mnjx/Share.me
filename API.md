@@ -10,7 +10,7 @@ docker run -d --name shareme \
   -p 7543:8080 \
   -e API_TOKEN="$API_TOKEN" \
   -v shareme-data:/data \
-  share-me:local
+  ghcr.io/d3mnjx/share.me:latest
 ```
 
 Use your existing data volume when upgrading an instance. Compose reads its volume name from `DATA_VOLUME`.
@@ -68,10 +68,12 @@ Errors use `{ "error": "..." }`. Invalid input returns 400, a missing video retu
 
 ## Messenger previews
 
-Watch pages include their title, description, canonical URL, Open Graph metadata, Twitter/X card metadata, local JPEG thumbnail, video URL, and known dimensions in the **initial HTML**, without JavaScript. Source descriptions/authors are saved for new downloads. Existing downloads use their saved title, a video frame, and a description based on the original source. The app identifies itself as Share.me rather than impersonating the original platform.
+Watch pages include their title, description, canonical URL, Open Graph metadata, Twitter/X card metadata, locally cached preview image, video URL, and known dimensions in the **initial HTML**, without JavaScript. Source descriptions/authors are saved for new downloads. Thumbnails prefer the source image, then a sampled video frame, then a raster app icon. Preview failures do not discard completed media. Older downloads are upgraded from local files at startup. The app identifies itself as Share.me rather than impersonating the original platform.
 
 Set `PUBLIC_URL=https://your-public-host` behind an HTTPS reverse proxy so the page advertises the correct public image and video URLs. Without it, URLs use the request's scheme and Host. Untrusted forwarded headers are not used. The copy buttons use the browser's current origin, so open the app at its public HTTPS address when sharing externally.
 
 Signal's Android client reads `og:title`, `og:description`, and `og:image`, requires HTTPS preview URLs, and rejects private/local IP addresses. A plain HTTP or private sandbox address will not generate a Signal card. Signal also needs link previews enabled. Messengers decide how to display a card and may cache it; share after a download finishes. `og:video` does not guarantee inline playback in a messenger.
 
 References checked on 2026-10-16: [Signal preview parsing](https://github.com/signalapp/Signal-Android/blob/main/app/src/main/java/org/thoughtcrime/securesms/linkpreview/LinkPreviewUtil.java) and [URL eligibility](https://github.com/signalapp/Signal-Android/blob/main/app/src/main/java/org/thoughtcrime/securesms/util/LinkUtil.kt).
+
+Detailed findings and limits: [best-effort messenger previews](docs/link-previews.md).

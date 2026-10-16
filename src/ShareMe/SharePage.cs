@@ -15,7 +15,7 @@ public static class SharePage
         return text[..length].TrimEnd() + "…";
     }
 
-    public static string Render(string template, Video? video, string origin, bool hasPoster)
+    public static string Render(string template, Video? video, string origin, PreviewImage? image)
     {
         var title = Text(video?.Title, 300) ?? "Shared video";
         var ready = video?.Status == "ready";
@@ -31,7 +31,7 @@ public static class SharePage
         Meta("og:title", title);
         Meta("og:description", description);
         Meta("og:type", ready ? "video.other" : "website");
-        Meta("twitter:card", ready && hasPoster ? "summary_large_image" : "summary", false);
+        Meta("twitter:card", image is { IsIcon: false } ? "summary_large_image" : "summary", false);
         Meta("twitter:title", title, false);
         Meta("twitter:description", description, false);
         if (video is not null)
@@ -40,25 +40,25 @@ public static class SharePage
             Meta("og:url", url);
             tags.AppendLine($"<link rel=\"canonical\" href=\"{WebUtility.HtmlEncode(url)}\">");
             if (!string.IsNullOrWhiteSpace(video.Author)) Meta("author", video.Author, false);
+            if (image is not null)
+            {
+                var posterUrl = $"{origin}{image.Path}";
+                Meta("og:image", posterUrl);
+                Meta("og:image:url", posterUrl);
+                if (origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) Meta("og:image:secure_url", posterUrl);
+                Meta("og:image:type", image.ContentType);
+                Meta("og:image:alt", image.IsIcon ? "Share.me" : $"Preview of {title}");
+                if (image.Width > 0 && image.Height > 0)
+                {
+                    Meta("og:image:width", image.Width.ToString(CultureInfo.InvariantCulture));
+                    Meta("og:image:height", image.Height.ToString(CultureInfo.InvariantCulture));
+                }
+                Meta("twitter:image", posterUrl, false);
+                Meta("twitter:image:alt", image.IsIcon ? "Share.me" : $"Preview of {title}", false);
+            }
             if (ready)
             {
                 var mediaUrl = $"{origin}/m/{video.Id}.mp4";
-                if (hasPoster)
-                {
-                    var posterUrl = $"{origin}/p/{video.Id}.jpg";
-                    Meta("og:image", posterUrl);
-                    Meta("og:image:url", posterUrl);
-                    if (origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) Meta("og:image:secure_url", posterUrl);
-                    Meta("og:image:type", "image/jpeg");
-                    Meta("og:image:alt", title);
-                    if (video.PosterWidth > 0 && video.PosterHeight > 0)
-                    {
-                        Meta("og:image:width", video.PosterWidth.ToString(CultureInfo.InvariantCulture));
-                        Meta("og:image:height", video.PosterHeight.ToString(CultureInfo.InvariantCulture));
-                    }
-                    Meta("twitter:image", posterUrl, false);
-                    Meta("twitter:image:alt", title, false);
-                }
                 Meta("og:video", mediaUrl);
                 Meta("og:video:url", mediaUrl);
                 if (origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) Meta("og:video:secure_url", mediaUrl);

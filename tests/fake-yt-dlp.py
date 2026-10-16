@@ -33,6 +33,7 @@ if '--dump-single-json' in args:
     print(json.dumps({'title': '<img src=x onerror=alert(1)> & a video' if mode == 'xss' else 'A little moment worth sharing',
                       'description': '\"><script>alert("preview")</script>' if mode == 'xss' else 'A sample description with "quotes" & details.',
                       'uploader': 'Sample author',
+                      'thumbnail': 'http://127.0.0.1/private-thumbnail.jpg',
                       'duration': 99999 if mode == 'too-long' else None if mode == 'unknown-duration' else 2,
                       'is_live': mode == 'live'}))
 else:

@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace ShareMe;
 
-public sealed class DownloadWorker(VideoStore store, AppSettings settings, PublicProxy proxy, ILogger<DownloadWorker> logger) : BackgroundService
+public sealed class DownloadWorker(VideoStore store, AppSettings settings, PublicProxy proxy, PreviewService previews, ILogger<DownloadWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -93,8 +93,16 @@ public sealed class DownloadWorker(VideoStore store, AppSettings settings, Publi
         File.Delete(source);
         var bytes = new FileInfo(store.FilePath(id, "video.mp4")).Length;
         if (bytes > settings.MaxFileBytes) throw new DownloadException("The converted video exceeds the file size limit.");
-        await Run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-protocol_whitelist", "file,pipe", "-i", store.FilePath(id, "video.mp4"),
-            "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "3", store.FilePath(id, "poster.jpg")], folder, id, token);
+        try
+        {
+            await Run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-protocol_whitelist", "file,pipe", "-i", store.FilePath(id, "video.mp4"),
+                "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "3", store.FilePath(id, "poster.jpg")], folder, id, token);
+        }
+        catch (Exception e) when (!stoppingToken.IsCancellationRequested)
+        {
+            logger.LogWarning("Player poster unavailable for {Id}: {Reason}", id, e.Message);
+            File.Delete(store.FilePath(id, "poster.jpg"));
+        }
         async Task<(int Width, int Height)> Dimensions(string file)
         {
             var json = await Run("ffprobe", ["-v", "error", "-protocol_whitelist", "file,pipe", "-select_streams", "v:0",
@@ -103,8 +111,24 @@ public sealed class DownloadWorker(VideoStore store, AppSettings settings, Publi
             var stream = document.RootElement.GetProperty("streams")[0];
             return (stream.GetProperty("width").GetInt32(), stream.GetProperty("height").GetInt32());
         }
-        var (width, height) = await Dimensions("video.mp4");
-        var (posterWidth, posterHeight) = await Dimensions("poster.jpg");
+        var (width, height) = (picture.GetProperty("width").GetInt32(), picture.GetProperty("height").GetInt32());
+        try { (width, height) = await Dimensions("video.mp4"); }
+        catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogDebug(e, "Using source dimensions for {Id}", id); }
+        var (posterWidth, posterHeight) = (0, 0);
+        if (File.Exists(store.FilePath(id, "poster.jpg")))
+        {
+            try { (posterWidth, posterHeight) = await Dimensions("poster.jpg"); }
+            catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogDebug(e, "Poster dimensions unavailable for {Id}", id); }
+        }
+        await previews.Prepare(id, Field("thumbnail"), stoppingToken);
+        if (store.UsedBytes() > settings.MaxStorageBytes)
+        {
+            // Optional images must not crowd out an otherwise valid download.
+            File.Delete(store.FilePath(id, "preview.jpg"));
+            File.Delete(store.FilePath(id, "poster.jpg"));
+            store.Update(id, v => v with { PreviewHash = null });
+            (posterWidth, posterHeight) = (0, 0);
+        }
         if (store.UsedBytes() > settings.MaxStorageBytes) throw new DownloadException("The download exceeded the available storage limit.");
         store.Update(id, v => v with
         {
