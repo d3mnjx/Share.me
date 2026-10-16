@@ -26,7 +26,7 @@ The token grants access to all videos on the instance, including listing and del
 | GET    | `/api/v1/videos?offset=0&limit=50` | Newest-first `{ videos, total, offset, limit }`; maximum limit 100                 |
 | GET    | `/api/v1/videos/{id}`              | Video metadata and download status                                                 |
 | GET    | `/api/v1/videos/{id}/media`        | Download MP4; supports HTTP Range requests                                         |
-| GET    | `/api/v1/videos/{id}/poster`       | JPEG thumbnail                                                                     |
+| GET    | `/api/v1/videos/{id}/poster`       | JPEG thumbnail (PNG icon fallback)                                                 |
 | DELETE | `/api/v1/videos/{id}`              | Delete a completed or failed job and its files; HTTP 204                           |
 
 ## Submit, poll, share
@@ -50,7 +50,7 @@ curl --fail-with-body "$BASE_URL/api/v1/videos/$VIDEO_ID" \
 
 `status` is `queued`, `downloading`, `processing`, `ready`, or `failed`. `progress` is download progress; `error` explains a failed job. Metadata includes `title`, `description`, `author`, `duration` in seconds, `bytes`, `width`, and `height` when known.
 
-When ready, `shareUrl` is the watch page, `mediaUrl` is the MP4, and `posterUrl` is the JPEG. These paths are relative to your externally reachable Share.me origin. Send the **watch page** for messenger preview cards. The MP4 URL is for direct playback/downloads. Viewers do not need the API token.
+When ready, `shareUrl` is the watch page, `mediaUrl` is the MP4, and `posterUrl` is the player thumbnail (JPEG, or a PNG icon fallback). `previewUrl`, when available, is the dedicated messenger preview JPEG. These paths are relative to your externally reachable Share.me origin. Send the **watch page** for messenger preview cards. The MP4 URL is for direct playback/downloads. Viewers do not need the API token.
 
 ```sh
 curl --fail-with-body "$BASE_URL/api/v1/videos/$VIDEO_ID/media" \

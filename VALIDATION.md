@@ -51,3 +51,9 @@ Signal's current Android source was checked for required Open Graph fields and U
 ## Best-effort messenger previews
 
 The full integration/browser suite passed after adding dedicated 1200 × 630 JPEG previews capped at 512 KiB. Checks cover image dimensions, byte limits, GET/HEAD requests, content-hashed image URLs, matching metadata across messenger user agents, and fallback from a blocked private thumbnail URL to local media. A deliberately failing image generator confirms downloads remain playable and metadata falls back to the raster app icon. Signal Android/Desktop source, Apple Messages guidance, Slack documentation, and Open Graph guidance informed the implementation; references and limits are recorded in [docs/link-previews.md](docs/link-previews.md).
+
+The updated local Docker app also downloaded the YouTube sample again and produced a 53,334-byte JPEG using the original source thumbnail. The temporary test share was removed afterward.
+
+## Published container
+
+[GitHub Actions run 38904087430](https://github.com/d3mnjx/Share.me/actions/runs/38904087430) passed its integration tests and published `ghcr.io/d3mnjx/share.me:latest` from commit `741cccc`. The package is public. A pull with an empty Docker configuration succeeded without credentials, and the published manifest includes Linux AMD64 and ARM64 images. A temporary container running the published AMD64 image passed health, homepage, raster icon, and missing/valid API-token checks; yt-dlp and Deno executed successfully. ARM64 was built and its manifest verified, but was not independently runtime-tested on ARM hardware.
