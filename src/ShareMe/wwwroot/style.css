@@ -432,6 +432,20 @@ input::placeholder {
     padding: 8px 10px;
   }
 }
+@media (max-width: 520px), (pointer: coarse) and (max-height: 520px) {
+  .watch-main {
+    max-width: none;
+    padding-inline: 0;
+  }
+  .watch-main > :not(video) {
+    margin-inline: 16px;
+  }
+  .watch-main video {
+    width: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+}
 @media (max-width: 360px) {
   .brand {
     font-size: 17px;

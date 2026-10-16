@@ -13,6 +13,8 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +32,8 @@ with socket.socket() as sock:
     port = sock.getsockname()[1]
 base = f'http://127.0.0.1:{port}'
 env = {**os.environ, 'ASPNETCORE_URLS': base, 'DATA_PATH': str(work / 'data'), 'YT_DLP_PATH': str(fake), 'FAKE_MEDIA': str(fixture),
-       'MAX_FILE_MB': '1', 'PUBLIC_URL': 'https://share.example', 'DOWNLOAD_TIMEOUT_SECONDS': '10', 'API_TOKEN': 'integration-token'}
+       'MAX_FILE_MB': '1', 'PUBLIC_URL': 'https://share.example', 'DOWNLOAD_TIMEOUT_SECONDS': '10', 'API_TOKEN': 'integration-token',
+       'MAX_VIDEOS_PER_DAY': '23', 'MAX_STORED_VIDEOS': '66'}
 log = open(work / 'server.log', 'w+')
 process = None
 auth = {'Authorization': 'Bearer integration-token'}
@@ -91,6 +94,8 @@ def wait(result):
 try:
     start()
     assert request('/')[0] == 200
+    assert request('/api/config')[2]['maxVideosPerDay'] == 23
+    assert request('/api/config')[2]['maxStoredVideos'] == 66
     assert request('/api/videos', 'POST', {'url': 'file:///etc/passwd'})[0] == 400
     assert request('/api/videos', 'POST', {'url': 'http://127.0.0.1'})[0] == 400
     assert request('/api/videos', 'POST', {'url': 'http://169.254.169.254'})[0] == 400
@@ -231,6 +236,92 @@ try:
     assert request(without_preview['posterUrl'])[1]['Content-Type'] == 'image/png'
     assert request('/icon-180.png')[0] == 200
     print('PASS optional preview failures retain playable downloads and fall back to a raster icon', flush=True)
+    stop()
+    env.update(DATA_PATH=str(work / 'daily-data'), MAX_VIDEOS_PER_DAY='3', API_TOKEN='integration-token', PATH=os.environ['PATH'])
+    start()
+    assert request('/api/videos', 'POST', {'url': 'invalid'})[0] == 400
+    assert request('/api/config')[2]['videosSubmittedToday'] == 0
+    def concurrent_submit(i):
+        return request('/api/v1/videos' if i % 2 else '/api/videos', 'POST', {'url': 'https://example.com/fail'}, headers=auth)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        submissions = list(pool.map(concurrent_submit, range(6)))
+    accepted = [body for code, _, body in submissions if code == 202]
+    rejected = [(headers, body) for code, headers, body in submissions if code == 429]
+    assert len(accepted) == len(rejected) == 3, submissions
+    assert all(int(headers['Retry-After']) > 0 and body['retryAt'].endswith('+00:00') for headers, body in rejected)
+    for created in accepted:
+        assert wait(created)['status'] == 'failed'
+        assert request('/api/v1/videos/' + created['video']['id'], 'DELETE', headers=auth)[0] == 204
+    assert request('/api/config')[2]['videosSubmittedToday'] == 3
+    assert request('/api/v1/config', headers=auth)[2]['videosSubmittedToday'] == 3
+    stop(); start()
+    assert request('/api/videos', 'POST', {'url': 'https://example.com/test'})[0] == 429
+    assert request('/api/config')[2]['videosSubmittedToday'] == 3
+    stop()
+    usage_path = work / 'daily-data/daily-usage.json'
+    usage = json.loads(usage_path.read_text())
+    usage['Day'] = (datetime.now(timezone.utc) - timedelta(days=1)).date().isoformat()
+    usage_path.write_text(json.dumps(usage))
+    start()
+    assert request('/api/config')[2]['videosSubmittedToday'] == 0
+    assert wait(submit('new-day'))['status'] == 'ready'
+    assert request('/api/config')[2]['videosSubmittedToday'] == 1
+    print('PASS global daily quota across UI/API, concurrent admission, failed/deleted jobs, restart persistence and UTC rollover', flush=True)
+    stop()
+    env.update(DATA_PATH=str(work / 'retention-data'), MAX_VIDEOS_PER_DAY='23', MAX_STORED_VIDEOS='2')
+    start()
+    oldest = wait(submit('oldest'))
+    second = wait(submit('second'))
+    assert oldest['status'] == second['status'] == 'ready'
+    active = submit('hang')['video']
+    for _ in range(100):
+        if request(oldest['shareUrl'])[0] == 404: break
+        time.sleep(.05)
+    assert request(oldest['shareUrl'])[0] == request(oldest['mediaUrl'])[0] == 404
+    assert not (work / 'retention-data/videos' / oldest['id']).exists()
+    assert request(second['shareUrl'])[0] == 200
+    assert request('/api/videos/' + active['id'])[2]['status'] in ['queued', 'downloading']
+    newest = submit('fail')['video']
+    for _ in range(100):
+        if request(second['shareUrl'])[0] == 404: break
+        time.sleep(.05)
+    assert request(second['shareUrl'])[0] == 404
+    assert request('/api/videos/' + active['id'])[0] == 200
+    # Lowering the limit applies on restart; active jobs recover as failed first.
+    stop()
+    env['MAX_STORED_VIDEOS'] = '1'
+    start()
+    for _ in range(100):
+        listing = request('/api/v1/videos', headers=auth)[2]
+        if listing['total'] == 1: break
+        time.sleep(.05)
+    assert [v['id'] for v in listing['videos']] == [newest['id']]
+    assert request('/api/config')[2]['videosSubmittedToday'] == 4
+    # With only active jobs, temporarily exceed retention until they finish.
+    stop()
+    env['DATA_PATH'] = str(work / 'active-retention-data')
+    start()
+    active = submit('hang')['video']
+    newest = submit('fail')['video']
+    assert request('/api/v1/videos', headers=auth)[2]['total'] == 2
+    for _ in range(150):
+        listing = request('/api/v1/videos', headers=auth)[2]
+        if listing['total'] == 1 and listing['videos'][0]['status'] == 'failed': break
+        time.sleep(.1)
+    assert [v['id'] for v in listing['videos']] == [newest['id']]
+    assert request('/api/videos/' + active['id'])[0] == 404
+    assert request('/api/config')[2]['videosSubmittedToday'] == 2
+    print('PASS oldest-first background retention, media removal, active-job protection, completion cleanup and reduced limit on restart', flush=True)
+    stop()
+    env.update(DATA_PATH=str(work / 'disk-data'), MAX_STORAGE_MB='10')
+    start()
+    filler = work / 'disk-data/videos/filler.bin'
+    with filler.open('wb') as output: output.truncate(10 * 1024 * 1024)
+    assert request('/api/videos', 'POST', {'url': 'https://example.com/test'})[0] == 503
+    assert request('/api/config')[2]['videosSubmittedToday'] == 0
+    filler.unlink()
+    assert wait(submit('has-space'))['status'] == 'ready'
+    print('PASS disk budget remains independent and rejected submissions do not consume daily allowance', flush=True)
 finally:
     stop()
     log.flush(); log.seek(0)

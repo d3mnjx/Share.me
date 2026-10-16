@@ -13,6 +13,8 @@ public sealed class AppSettings
     public string? PublicUrl { get; } = ReadPublicUrl();
     public long MaxFileBytes { get; } = Number("MAX_FILE_MB", 250, 1, 4096) * 1024L * 1024;
     public long MaxStorageBytes { get; } = Number("MAX_STORAGE_MB", 10240, 10, 1048576) * 1024L * 1024;
+    public int MaxVideosPerDay { get; } = Number("MAX_VIDEOS_PER_DAY", 23, 1, 1000000);
+    public int MaxStoredVideos { get; } = Number("MAX_STORED_VIDEOS", 66, 1, 10000);
     public int MaxDurationSeconds { get; } = Number("MAX_DURATION_MINUTES", 20, 1, 240) * 60;
     public int TimeoutSeconds { get; } = Number("DOWNLOAD_TIMEOUT_SECONDS", 900, 10, 7200);
     private static int Number(string key, int fallback, int min, int max) => Environment.GetEnvironmentVariable(key) is not { } value ? fallback :
@@ -54,12 +56,20 @@ public sealed record Video(string Id, string SourceUrl, string DeleteHash, DateT
     };
 }
 
+public sealed record DailyUsage(DateOnly Day, int Count);
+public sealed class DailyLimitException(DateTimeOffset resetsAt) : Exception("The daily video limit for this server has been reached. Try again after midnight UTC.")
+{
+    public DateTimeOffset ResetsAt { get; } = resetsAt;
+}
+
 public sealed class VideoStore
 {
     private readonly object gate = new();
     private readonly Dictionary<string, Video> videos = new();
     private readonly AppSettings settings;
+    private DailyUsage dailyUsage;
     public Channel<string> Queue { get; } = Channel.CreateBounded<string>(20);
+    public Channel<bool> CleanupRequests { get; } = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
     public VideoStore(AppSettings settings, ILogger<VideoStore> logger)
     {
         this.settings = settings;
@@ -85,6 +95,18 @@ public sealed class VideoStore
             }
             catch (Exception e) { logger.LogError(e, "Unable to load video record {Path}", path); }
         }
+        var usagePath = Path.Combine(settings.DataPath, "daily-usage.json");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // Existing records seed the counter when upgrading an older installation.
+        var existingCount = videos.Values.Count(v => DateOnly.FromDateTime(v.CreatedAt.UtcDateTime) == today);
+        dailyUsage = File.Exists(usagePath)
+            ? JsonSerializer.Deserialize<DailyUsage>(File.ReadAllText(usagePath)) ?? throw new InvalidDataException("Invalid daily usage record")
+            : new(today, existingCount);
+        if (dailyUsage.Count < 0) throw new InvalidDataException("Invalid daily usage count");
+        if (dailyUsage.Day != today) dailyUsage = new(today, existingCount);
+        else dailyUsage = dailyUsage with { Count = Math.Max(dailyUsage.Count, existingCount) };
+        // Persist before startup cleanup can remove records used to seed the count.
+        SaveDailyUsage(dailyUsage);
     }
     public static bool ValidId(string id) => id.Length == 32 && id.All(c => char.IsAsciiHexDigitLower(c));
     public string FilePath(string id, string file) => Path.Combine(settings.DataPath, "videos", id, file);
@@ -114,15 +136,26 @@ public sealed class VideoStore
     {
         lock (gate)
         {
+            var now = DateTimeOffset.UtcNow;
+            var usage = CurrentDailyUsage(now);
+            if (usage.Count >= settings.MaxVideosPerDay) throw new DailyLimitException(NextDay(now));
             if (videos.Values.Count(v => v.Status is "queued" or "downloading" or "processing") >= 20)
                 throw new InvalidOperationException("The download queue is full. Please try again shortly.");
             if (UsedBytes() >= settings.MaxStorageBytes || videos.Count >= 10000)
                 throw new InvalidOperationException("Storage is full. Delete an old share before adding another.");
             var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
-            var video = new Video(Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)), url, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))), DateTimeOffset.UtcNow);
+            var video = new Video(Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)), url, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))), now);
             Save(video);
+            try { SaveDailyUsage(usage with { Count = usage.Count + 1 }); }
+            catch { Directory.Delete(FilePath(video.Id, ""), true); throw; }
             videos.Add(video.Id, video);
-            if (!Queue.Writer.TryWrite(video.Id)) { Delete(video.Id); throw new InvalidOperationException("The download queue is full."); }
+            if (!Queue.Writer.TryWrite(video.Id))
+            {
+                Delete(video.Id);
+                SaveDailyUsage(usage);
+                throw new InvalidOperationException("The download queue is full.");
+            }
+            CleanupRequests.Writer.TryWrite(true);
             return (video, token);
         }
     }
@@ -134,6 +167,40 @@ public sealed class VideoStore
             var video = change(current);
             if (persist) Save(video);
             videos[id] = video;
+            if (persist && video.Status is "ready" or "failed") CleanupRequests.Writer.TryWrite(true);
+        }
+    }
+    private DailyUsage CurrentDailyUsage(DateTimeOffset now) => dailyUsage.Day == DateOnly.FromDateTime(now.UtcDateTime)
+        ? dailyUsage : new(DateOnly.FromDateTime(now.UtcDateTime), 0);
+    private static DateTimeOffset NextDay(DateTimeOffset now) => new(now.UtcDateTime.Date.AddDays(1), TimeSpan.Zero);
+    public (int Count, DateTimeOffset ResetsAt) DailyStatus()
+    {
+        lock (gate)
+        {
+            var now = DateTimeOffset.UtcNow;
+            return (CurrentDailyUsage(now).Count, NextDay(now));
+        }
+    }
+    private void SaveDailyUsage(DailyUsage usage)
+    {
+        var path = Path.Combine(settings.DataPath, "daily-usage.json");
+        File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(usage));
+        File.Move(path + ".tmp", path, true);
+        dailyUsage = usage;
+    }
+    public int Prune()
+    {
+        lock (gate)
+        {
+            var removed = 0;
+            // Keep active jobs safe; completion schedules another cleanup pass.
+            foreach (var video in videos.Values.Where(v => v.Status is "ready" or "failed").OrderBy(v => v.CreatedAt).ToArray())
+            {
+                if (videos.Count <= settings.MaxStoredVideos) break;
+                Delete(video.Id);
+                removed++;
+            }
+            return removed;
         }
     }
     private void Save(Video video)

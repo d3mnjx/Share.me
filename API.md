@@ -64,7 +64,7 @@ The `deleteToken` returned at creation is for the open browser API; integrations
 
 ## Errors
 
-Errors use `{ "error": "..." }`. Invalid input returns 400, a missing video returns 404, and media requests or deletion before a job finishes return 409. Rate limits return 429; full queues/storage return 503. Failed downloads remain inspectable and can be deleted or retried by submitting the URL again.
+Errors use `{ "error": "..." }`. Invalid input returns 400, a missing video returns 404, and media requests or deletion before a job finishes return 409. Rate limits return 429; the persistent app-wide daily allowance defaults to 23 accepted submissions across both APIs and resets at midnight UTC. Daily-limit responses include `retryAt` and `Retry-After`. Failed downloads and deleted shares still count. Background cleanup retains the newest 66 shares by default and removes old media and links. `/config` exposes `maxVideosPerDay`, `videosSubmittedToday`, `dailyLimitResetsAt`, and `maxStoredVideos`. Full queues/storage return 503. Failed downloads remain inspectable and can be deleted or retried by submitting the URL again.
 
 ## Messenger previews
 

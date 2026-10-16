@@ -226,7 +226,7 @@ $("share-form").addEventListener("submit", async (event) => {
 api("/api/config")
   .then((config) => {
     $("limits").textContent =
-      `Up to ${config.maxDurationMinutes} min · ${config.maxFileMb} MB`;
+      `Up to ${config.maxDurationMinutes} min · ${config.maxFileMb} MB · ${config.maxVideosPerDay} downloads/day across this server (UTC) · Keeps the newest ${config.maxStoredVideos}`;
   })
   .catch(() => {});
 renderRecent();

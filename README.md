@@ -4,7 +4,7 @@ Paste a video link. Get a link anyone can watch, without an account on the origi
 
 A standalone, self-hosted Docker app inspired by [Yap’s media caching](https://github.com/urza/Yap). It uses yt-dlp to fetch videos, ffmpeg to prepare browser-compatible MP4s, and ASP.NET Core to serve the app and media. There is no database service, frontend build step, or external API account to configure.
 
-The interface defaults to dark mode, with a light-theme toggle that remembers your choice. Portrait, square, and landscape videos use their native aspect ratio and fit the screen.
+The interface defaults to dark mode, with a light-theme toggle that remembers your choice. Portrait, square, and landscape videos use their native aspect ratio. On phones, videos fill the screen width. Clips up to three minutes loop automatically.
 
 The token-authenticated integration API supports submission, polling, listing, downloads, and deletion. Configure `API_TOKEN` through Docker; see [API.md](API.md) for endpoints and curl examples. The web interface remains open.
 
@@ -60,7 +60,7 @@ For sharing outside your network, point your domain at an HTTPS reverse proxy in
 - Keeps your recent submissions and deletion controls in your browser. Deleting a share removes its media and invalidates its link. Active downloads must finish before deletion.
 - Handles failed downloads and interrupted jobs explicitly. A server restart preserves completed shares and marks interrupted jobs as failed so they can be resubmitted.
 
-Anyone with a share URL can watch. There is no public directory of all videos. A random deletion token is returned only when a share is created and kept in browser storage; viewers do not receive it. Clearing that storage removes your history and deletion controls, but does **not** delete the server’s files. The server operator can remove an orphaned share by stopping the app and deleting its `/data/videos/<id>` directory. There is no automatic expiration.
+Anyone with a share URL can watch. There is no public directory of all videos. A random deletion token is returned only when a share is created and kept in browser storage; viewers do not receive it. Clearing that storage removes your history and deletion controls, but does **not** delete the server’s files. Background cleanup keeps the newest 66 shares by default; old shares and their files are deleted, and their links stop working. There is no time-based expiration.
 
 ## Platform support
 
@@ -79,13 +79,19 @@ The generic webpage extractor is disabled. Native HTTP/HTTPS downloads and suppo
 | `API_TOKEN`                | empty          | Bearer token for `/api/v1`; disabled when unset    |
 | `MAX_FILE_MB`              | `250`          | Maximum final video size; also passed to yt-dlp    |
 | `MAX_STORAGE_MB`           | `10240`        | Media and metadata storage budget                  |
+| `MAX_VIDEOS_PER_DAY`       | `23`           | Global accepted submissions per UTC day            |
+| `MAX_STORED_VIDEOS`        | `66`           | Shares to retain; oldest finished shares removed   |
 | `MAX_DURATION_MINUTES`     | `20`           | Maximum video duration                             |
 | `DOWNLOAD_TIMEOUT_SECONDS` | `900`          | Total time allowed per job, including conversion   |
 | `YT_DLP_VERSION`           | `2026.08.19`   | Pinned yt-dlp release used when building the image |
 
-One worker processes up to 20 outstanding submissions. Submissions are limited to 10 per minute per connecting IP. Behind a reverse proxy, clients share that proxy’s limit; forwarded IP headers are deliberately not trusted. Completed and failed records are capped at 10,000. Failed records are small and can be deleted from browser history.
+The UI and integration API share one daily allowance, defaulting to 23 accepted submissions per UTC calendar day. Accepted jobs count even if downloading fails or the share is later deleted. Invalid requests and rejected submissions do not count. The counter is stored in the data volume and survives restarts; the allowance resets at midnight UTC. Requests above the limit return HTTP 429 with a reset time and `Retry-After` header.
 
-Storage is checked during processing, with a temporary per-job budget of three times the video size limit. Downloads can briefly overshoot between checks; conversion needs room for both input and output. The app refuses new submissions when storage is full and does not silently expire old shares. Compose also limits CPU, memory, processes, and log growth, runs as an unprivileged user, and keeps the application filesystem read-only. `/tmp` permits execution because yt-dlp’s standalone binary unpacks native libraries there.
+Background cleanup runs at startup, after each accepted submission, and when a download finishes. It removes the oldest completed or failed shares until the total is at most `MAX_STORED_VIDEOS` (66 by default), including their media and metadata. Active downloads are never removed, so the total can temporarily exceed the limit until jobs finish. To override the defaults with `docker run`, add `-e MAX_VIDEOS_PER_DAY=23 -e MAX_STORED_VIDEOS=66 -e MAX_STORAGE_MB=10240` with your chosen values.
+
+One worker processes up to 20 outstanding submissions. Submissions are limited to 10 per minute per connecting IP. Behind a reverse proxy, clients share that proxy’s limit; forwarded IP headers are deliberately not trusted. Failed records are small and can also be deleted from browser history.
+
+Storage is checked during processing, with a temporary per-job budget of three times the video size limit. Downloads can briefly overshoot between checks; conversion needs room for both input and output. The app refuses new submissions when storage is full; the disk cap is separate from the automatic count-based cleanup. Compose also limits CPU, memory, processes, and log growth, runs as an unprivileged user, and keeps the application filesystem read-only. `/tmp` permits execution because yt-dlp’s standalone binary unpacks native libraries there.
 
 ## Maintenance
 

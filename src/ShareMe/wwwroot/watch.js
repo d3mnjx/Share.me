@@ -3,16 +3,19 @@ const $ = (id) => document.getElementById(id);
 const id = location.pathname.split("/")[2];
 let video;
 const player = $("player");
-function sizePlayer() {
+function updatePlayer() {
   if (player.videoWidth && player.videoHeight) {
     player.style.setProperty(
       "--video-ratio",
       player.videoWidth / player.videoHeight,
     );
   }
+  // Use the actual media duration so shortened platform links work too.
+  player.loop = player.duration > 0 && player.duration <= 180;
 }
-player.addEventListener("loadedmetadata", sizePlayer);
-player.addEventListener("resize", sizePlayer);
+player.addEventListener("loadedmetadata", updatePlayer);
+player.addEventListener("durationchange", updatePlayer);
+player.addEventListener("resize", updatePlayer);
 $("copy-share").onclick = () => copyLink(video.shareUrl, $("copy-status"));
 $("copy-direct").onclick = () => copyLink(video.mediaUrl, $("copy-status"));
 $("player").addEventListener("error", () => {

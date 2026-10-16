@@ -7,6 +7,21 @@ public sealed record Submission(string? Url);
 
 public static class VideoApi
 {
+    public static IResult Config(AppSettings settings, VideoStore store)
+    {
+        var usage = store.DailyStatus();
+        return Results.Ok(new
+        {
+            maxFileMb = settings.MaxFileBytes / 1024 / 1024,
+            maxStorageMb = settings.MaxStorageBytes / 1024 / 1024,
+            maxDurationMinutes = settings.MaxDurationSeconds / 60,
+            maxVideosPerDay = settings.MaxVideosPerDay,
+            videosSubmittedToday = usage.Count,
+            dailyLimitResetsAt = usage.ResetsAt,
+            maxStoredVideos = settings.MaxStoredVideos,
+            publicUrl = settings.PublicUrl
+        });
+    }
     public static IResult Submit(Submission input, VideoStore store, HttpRequest request)
     {
         if (input.Url is null || input.Url.Length > 4096 || !Uri.TryCreate(input.Url.Trim(), UriKind.Absolute, out var uri)
@@ -21,6 +36,11 @@ public static class VideoApi
             var (video, token) = store.Create(url);
             var prefix = request.Path.StartsWithSegments("/api/v1") ? "/api/v1/videos" : "/api/videos";
             return Results.Accepted($"{prefix}/{video.Id}", new { video = video.Public(), deleteToken = token });
+        }
+        catch (DailyLimitException e)
+        {
+            request.HttpContext.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling((e.ResetsAt - DateTimeOffset.UtcNow).TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return Results.Json(new { error = e.Message, retryAt = e.ResetsAt }, statusCode: 429);
         }
         catch (InvalidOperationException e) { return Results.Json(new { error = e.Message }, statusCode: 503); }
 
@@ -45,13 +65,7 @@ public static class VideoApi
             }
             return await next(context);
         });
-        api.MapGet("/config", (AppSettings settings) => Results.Ok(new
-        {
-            maxFileMb = settings.MaxFileBytes / 1024 / 1024,
-            maxStorageMb = settings.MaxStorageBytes / 1024 / 1024,
-            maxDurationMinutes = settings.MaxDurationSeconds / 60,
-            publicUrl = settings.PublicUrl
-        }));
+        api.MapGet("/config", Config);
         api.MapPost("/videos", Submit).RequireRateLimiting("submit");
         api.MapGet("/videos", (int? offset, int? limit, VideoStore store) =>
         {

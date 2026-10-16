@@ -54,6 +54,14 @@ The full integration/browser suite passed after adding dedicated 1200 × 630 JPE
 
 The updated local Docker app also downloaded the YouTube sample again and produced a 53,334-byte JPEG using the original source thumbnail. The temporary test share was removed afterward.
 
+## Mobile width and short-video looping
+
+The full integration/browser suite passed with edge-to-edge mobile playback and automatic looping for media up to 180 seconds. Browser playback crossed the end of a short clip and continued from the start. Additional real portrait, square, and 181-second landscape fixtures retained their aspect ratios with no horizontal overflow at 320, 390, and 520 pixels wide and on an 844 × 390 rotated phone. The longer fixture did not loop.
+
+## Daily allowance and retention
+
+The full integration/browser suite passed with the 23-per-day and 66-share defaults. Six simultaneous submissions split between the public UI API and authenticated API admitted exactly three jobs with a configured daily limit of three. Failed downloads and deleted shares remained counted after restart; a prior-day counter reset for the new UTC day. Rejections included HTTP 429, `Retry-After`, and a reset timestamp. Tests also verified oldest-first removal of records and media, protection of active jobs, cleanup after completion, applying a lower retention limit on restart, and independent disk-budget rejection without consuming the daily allowance.
+
 ## Published container
 
 [GitHub Actions run 38904087430](https://github.com/d3mnjx/Share.me/actions/runs/38904087430) passed its integration tests and published `ghcr.io/d3mnjx/share.me:latest` from commit `741cccc`. The package is public. A pull with an empty Docker configuration succeeded without credentials, and the published manifest includes Linux AMD64 and ARM64 images. A temporary container running the published AMD64 image passed health, homepage, raster icon, and missing/valid API-token checks; yt-dlp and Deno executed successfully. ARM64 was built and its manifest verified, but was not independently runtime-tested on ARM hardware.

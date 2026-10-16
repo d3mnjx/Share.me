@@ -43,6 +43,17 @@ try {
       return video.videoWidth > 0;
     }),
   );
+  assert.equal(
+    await page.locator("video").evaluate((video) => video.loop),
+    true,
+  );
+  await page.locator("video").evaluate((video) => {
+    video.currentTime = video.duration - 0.2;
+  });
+  await page.waitForFunction(() => {
+    const video = document.querySelector("video");
+    return video.currentTime < 0.5 && !video.paused;
+  });
   await page.screenshot({
     path: "test-results/watch-desktop.png",
     fullPage: true,
@@ -59,6 +70,29 @@ try {
   await phone.waitForFunction(
     () => document.querySelector("video").readyState >= 2,
   );
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 520, height: 900 },
+    { width: 844, height: 390 },
+  ]) {
+    await phone.setViewportSize(viewport);
+    const layout = await phone.locator("video").evaluate((video) => {
+      const bounds = video.getBoundingClientRect();
+      return {
+        left: bounds.left,
+        right: bounds.right,
+        ratio: bounds.width / bounds.height,
+        mediaRatio: video.videoWidth / video.videoHeight,
+        overflow: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    assert.ok(Math.abs(layout.left) < 1);
+    assert.ok(Math.abs(layout.right - viewport.width) < 1);
+    assert.ok(Math.abs(layout.ratio - layout.mediaRatio) < 0.01);
+    assert.equal(layout.overflow, false);
+  }
+  await phone.setViewportSize({ width: 390, height: 844 });
   assert.ok(
     await phone.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

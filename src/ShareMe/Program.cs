@@ -13,6 +13,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<PublicProxy>());
 builder.Services.AddSingleton<PreviewService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PreviewService>());
 builder.Services.AddHostedService<DownloadWorker>();
+builder.Services.AddHostedService<RetentionWorker>();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
@@ -33,11 +34,7 @@ app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
-app.MapGet("/api/config", (AppSettings settings) => Results.Ok(new
-{
-    maxFileMb = settings.MaxFileBytes / 1024 / 1024,
-    maxDurationMinutes = settings.MaxDurationSeconds / 60
-}));
+app.MapGet("/api/config", VideoApi.Config);
 app.MapPost("/api/videos", VideoApi.Submit).RequireRateLimiting("submit");
 app.MapGet("/api/videos/{id}", (string id, VideoStore store) =>
     store.Get(id) is { } video ? Results.Ok(video.Public()) : Results.NotFound(new { error = "This share does not exist or has been deleted." }));
