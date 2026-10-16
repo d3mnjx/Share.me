@@ -13,14 +13,16 @@ The token-authenticated integration API supports submission, polling, listing, d
 Linux (Bash):
 
 ```sh
-docker run -d --name share-me --restart unless-stopped --init -p 0.0.0.0:7543:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' ghcr.io/d3mnjx/share.me:latest
+docker run -d --name share-me --restart unless-stopped --init -p 0.0.0.0:7543:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
 ```
 
 Windows (PowerShell, Docker Desktop using Linux containers):
 
 ```powershell
-docker run -d --name share-me --restart unless-stopped --init -p 0.0.0.0:7543:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' ghcr.io/d3mnjx/share.me:latest
+docker run -d --name share-me --restart unless-stopped --init -p 0.0.0.0:7543:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
 ```
+
+Replace `https://your-domain.example` with your actual public HTTPS address, served through a reverse proxy to port 7543. For local HTTP testing, omit `-e PUBLIC_URL='https://your-domain.example'`.
 
 Open **http://localhost:7543**. The public image supports Linux AMD64 and ARM64. Set `API_TOKEN` to your own random value if you use the integration API; the UI stays open. Existing Compose users should retain their current `DATA_VOLUME` when switching deployments.
 
