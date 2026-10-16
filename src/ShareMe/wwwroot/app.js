@@ -50,7 +50,7 @@ function showCurrent(video) {
       "",
       video.error ||
         video.title ||
-        "You can share the link now. The video will appear there as soon as it’s ready.",
+        "The link will show the video when the download finishes.",
     ),
   );
   if (!done(video)) {
@@ -66,15 +66,15 @@ function showCurrent(video) {
   const actions = element("div", "actions");
   const open = element(
     "a",
-    "button",
-    video.status === "ready" ? "Watch video ↗" : "Open share page ↗",
+    "button secondary",
+    video.status === "ready" ? "Watch video" : "Open page",
   );
   open.href = video.shareUrl;
-  const copy = element("button", "secondary", "Copy share link");
+  const copy = element("button", "", "Copy link");
   const status = element("p", "copy-status");
   status.setAttribute("role", "status");
   copy.addEventListener("click", () => copyLink(video.shareUrl, status));
-  actions.append(open, copy);
+  actions.append(copy, open);
   if (video.status === "failed") {
     const retry = element("button", "secondary", "Try again");
     retry.onclick = () => {
@@ -89,10 +89,7 @@ function renderRecent() {
   $("recent-count").textContent = history.length;
   if (!history.length) {
     const empty = element("div", "empty-state");
-    empty.append(
-      element("span", "", "↗"),
-      element("p", "", "No videos submitted from this browser yet."),
-    );
+    empty.append(element("p", "", "No downloads yet."));
     $("recent-list").replaceChildren(empty);
     return;
   }
@@ -197,7 +194,7 @@ $("share-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("form-error").hidden = true;
   $("submit-button").disabled = true;
-  $("submit-button").textContent = "Adding your video…";
+  $("submit-button").textContent = "Adding…";
   try {
     const result = await api("/api/videos", {
       method: "POST",
@@ -223,7 +220,7 @@ $("share-form").addEventListener("submit", async (event) => {
     $("form-error").hidden = false;
   } finally {
     $("submit-button").disabled = false;
-    $("submit-button").textContent = "Download & share ↗";
+    $("submit-button").textContent = "Download";
   }
 });
 api("/api/config")

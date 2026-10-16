@@ -8,7 +8,7 @@
       name="description"
       content="Download a video from a platform link and share a watch page or direct MP4 link. Viewers do not need an account on the original platform."
     />
-    <title>Share.me — Download and share videos</title>
+    <title>Share.me</title>
     <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
     <script src="/theme.js"></script>
     <link rel="stylesheet" href="/style.css" />
@@ -20,14 +20,13 @@
         ><img
           class="brand-mark"
           src="/icon.svg?v=2"
-          width="35"
-          height="35"
+          width="28"
+          height="28"
           alt=""
-        />Share<span class="brand-dot">.</span>me</a
+        />Share.me</a
       >
       <div class="header-actions">
-        <span class="header-note">SELF-HOSTED VIDEO SHARING</span
-        ><button
+        <button
           class="theme-toggle secondary"
           type="button"
           aria-label="Switch to light theme"
@@ -37,108 +36,45 @@
       </div>
     </header>
     <main class="home">
-      <section class="hero">
-        <div class="eyebrow">
-          <span class="little-line"></span>DOWNLOAD A VIDEO. SHARE A LINK.
+      <h1>Share videos without a platform account.</h1>
+      <p class="intro">
+        Paste a video link. Share.me downloads it to this server and creates a
+        watch page and a direct MP4 link. Recipients can watch in their browser
+        without signing in to the original platform.
+      </p>
+      <form id="share-form">
+        <label for="video-url">Video URL</label>
+        <div class="input-row">
+          <input
+            id="video-url"
+            name="url"
+            type="url"
+            inputmode="url"
+            placeholder="https://…"
+            required
+            maxlength="4096"
+            autocomplete="off"
+            aria-describedby="form-error limits"
+          /><button type="submit" id="submit-button">Download</button>
         </div>
-        <h1>
-          Share videos without<br />
-          a platform account.
-        </h1>
-        <p class="intro">
-          Paste a video link. Share.me downloads it to this server and creates a
-          watch page and a direct MP4 link. Recipients can watch in their
-          browser without signing in to the original platform.
-        </p>
-        <form id="share-form" class="submit-panel">
-          <label for="video-url">Video URL</label>
-          <div class="input-row">
-            <span class="link-icon" aria-hidden="true">↗</span
-            ><input
-              id="video-url"
-              name="url"
-              type="url"
-              inputmode="url"
-              placeholder="Paste a link from YouTube, TikTok, or another site"
-              required
-              maxlength="4096"
-              autocomplete="off"
-              aria-describedby="form-error"
-            /><button type="submit" id="submit-button">
-              Download &amp; share <span aria-hidden="true">↗</span>
-            </button>
-          </div>
-          <p id="form-error" class="error" role="alert" hidden></p>
-          <div class="form-foot">
-            <span>One video per link. No login to submit.</span
-            ><span id="limits">Checking download limits…</span>
-          </div>
-        </form>
-        <div class="platforms">
-          <span>SUPPORTED PLATFORMS INCLUDE</span>
-          <div>
-            <b>YouTube</b><b>Instagram</b><b>X</b><b>Facebook</b><b>TikTok</b
-            ><span>+ more</span>
-          </div>
-          <p class="platform-note">
-            Downloads depend on platform availability. Private or
-            login-restricted posts may not work.
-          </p>
-        </div>
-      </section>
+        <p id="form-error" class="error" role="alert" hidden></p>
+        <p id="limits" class="limits"></p>
+      </form>
       <section
         class="result-panel"
         id="current-share"
         aria-live="polite"
         hidden
       ></section>
-      <section class="steps" aria-label="How it works">
-        <article>
-          <span class="step-number">01 /</span>
-          <h2>Paste the video URL</h2>
-          <p>
-            Copy the link to a video from a supported platform and submit it
-            above.
-          </p>
-        </article>
-        <article>
-          <span class="step-number">02 /</span>
-          <h2>Wait for the download</h2>
-          <p>
-            The video is saved on this server and prepared for playback in a
-            browser.
-          </p>
-        </article>
-        <article>
-          <span class="step-number">03 /</span>
-          <h2>Share the saved video</h2>
-          <p>
-            Copy the watch-page link or direct MP4 link. Anyone with the link
-            can watch.
-          </p>
-        </article>
-      </section>
-      <section class="recent-section">
+      <section class="recent-section" aria-labelledby="recent-heading">
         <div class="section-heading">
-          <h2>Your recent shares <span id="recent-count">0</span></h2>
-          <span>THIS BROWSER</span>
+          <h2 id="recent-heading">Recent <span id="recent-count">0</span></h2>
+          <span>This browser</span>
         </div>
         <div id="recent-list">
-          <div class="empty-state">
-            <span aria-hidden="true">↗</span>
-            <p>No videos submitted from this browser yet.</p>
-          </div>
+          <div class="empty-state"><p>No downloads yet.</p></div>
         </div>
-        <p class="local-note">
-          History and deletion controls are saved in this browser. Deleting a
-          video also disables its share link.
-        </p>
       </section>
     </main>
-    <footer>
-      <a class="brand small" href="/">Share<span class="brand-dot">.</span>me</a
-      ><span>Download videos. Share watch pages and MP4 links.</span
-      ><span>STORED ON THIS SERVER</span>
-    </footer>
   </body>
 </html>
