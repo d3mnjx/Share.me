@@ -13,18 +13,32 @@ The token-authenticated integration API supports submission, polling, listing, d
 Linux (Bash):
 
 ```sh
-docker run -d --name share-me --restart unless-stopped --init -p 0.0.0.0:7543:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
+docker run -d --name share-me --restart unless-stopped --init -p 6901:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
 ```
 
 Windows (PowerShell, Docker Desktop using Linux containers):
 
 ```powershell
-docker run -d --name share-me --restart unless-stopped --init -p 0.0.0.0:7543:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
+docker run -d --name share-me --restart unless-stopped --init -p 6901:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
 ```
 
-Replace `https://your-domain.example` with your actual public HTTPS address, served through a reverse proxy to port 7543. For local HTTP testing, omit `-e PUBLIC_URL='https://your-domain.example'`.
+Replace `https://your-domain.example` with your actual public HTTPS address, served through a reverse proxy to port 6901. For local HTTP testing, omit `-e PUBLIC_URL='https://your-domain.example'`.
 
-Open **http://localhost:7543**. The public image supports Linux AMD64 and ARM64. Set `API_TOKEN` to your own random value if you use the integration API; the UI stays open. Existing Compose users should retain their current `DATA_VOLUME` when switching deployments.
+Open **http://localhost:6901**. The public image supports Linux AMD64 and ARM64. Set `API_TOKEN` to your own random value if you use the integration API; the UI stays open. Existing Compose users should retain their current `DATA_VOLUME` when switching deployments.
+
+Update an existing container using the same API token, public URL, and data volume as before. The named volume keeps downloaded videos.
+
+Linux (Bash):
+
+```sh
+docker pull ghcr.io/d3mnjx/share.me:latest; docker stop share-me; docker rm share-me; docker run -d --name share-me --restart unless-stopped --init -p 6901:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
+```
+
+Windows (PowerShell):
+
+```powershell
+docker pull ghcr.io/d3mnjx/share.me:latest; docker stop share-me; docker rm share-me; docker run -d --name share-me --restart unless-stopped --init -p 6901:8080 -v shareme-data:/data -e API_TOKEN='replace-with-a-long-random-token' -e PUBLIC_URL='https://your-domain.example' ghcr.io/d3mnjx/share.me:latest
+```
 
 To build from source instead:
 
