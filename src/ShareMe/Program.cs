@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
-using ShareTo;
+using ShareMe;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 8192);
@@ -71,7 +71,7 @@ app.MapGet("/m/{id}.mp4", (string id, HttpRequest request, VideoStore store) =>
 {
     if (store.Get(id) is not { Status: "ready" } || !File.Exists(store.FilePath(id, "video.mp4"))) return Results.NotFound();
     return Results.File(store.FilePath(id, "video.mp4"), "video/mp4",
-        fileDownloadName: request.Query.ContainsKey("download") ? $"share-to-{id}.mp4" : null, enableRangeProcessing: true);
+        fileDownloadName: request.Query.ContainsKey("download") ? $"share-me-{id}.mp4" : null, enableRangeProcessing: true);
 });
 app.MapGet("/p/{id}.jpg", (string id, VideoStore store) =>
     store.Get(id) is { Status: "ready" } && File.Exists(store.FilePath(id, "poster.jpg"))
@@ -80,7 +80,7 @@ app.MapGet("/s/{id}", (string id, VideoStore store, AppSettings settings, IWebHo
 {
     var video = store.Get(id);
     var html = File.ReadAllText(Path.Combine(environment.WebRootPath, "watch.html"));
-    var title = System.Net.WebUtility.HtmlEncode(video?.Title ?? "Video shared with you");
+    var title = System.Net.WebUtility.HtmlEncode(video?.Title ?? "Shared video");
     var tags = $"<meta property=\"og:title\" content=\"{title}\"><meta property=\"og:type\" content=\"video.other\">";
     if (video is { Status: "ready" } && settings.PublicUrl is { } origin)
         tags += $"<meta property=\"og:image\" content=\"{origin}/p/{video.Id}.jpg\"><meta property=\"og:video\" content=\"{origin}/m/{video.Id}.mp4\"><meta property=\"og:video:type\" content=\"video/mp4\">";

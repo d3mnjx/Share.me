@@ -6,7 +6,7 @@ Source: https://github.com/urza/Yap
 
 Reference revision: `b5ff08be322391db168421aa5d6eb2568e2bd89c`
 
-Reference files: `Yap/Services/Chat/MediaCacheService.cs`, `Yap/Dockerfile`, and the repository README. share.to adapts the video-caching approach into a standalone implementation. Yap’s license statement at that revision is reproduced below:
+Reference files: `Yap/Services/Chat/MediaCacheService.cs`, `Yap/Dockerfile`, and the repository README. Share.me adapts the video-caching approach into a standalone implementation. Yap’s license statement at that revision is reproduced below:
 
 > YOU CAN USE THIS SOFTWARE "AS IS" (NO WARRANTY) IN ANY WAY YOU WANT, BUT BY DOING SO YOU ACKNOWLEDGE THAT:
 >

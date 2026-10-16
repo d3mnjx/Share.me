@@ -19,10 +19,8 @@ try {
     path: "test-results/home-desktop.png",
     fullPage: true,
   });
-  await page
-    .getByLabel("ONE LINK IN. ONE BETTER LINK OUT.")
-    .fill("https://example.com/browser");
-  await page.getByRole("button", { name: "Make it shareable" }).click();
+  await page.getByLabel("Video URL").fill("https://example.com/browser");
+  await page.getByRole("button", { name: "Download & share" }).click();
   await page
     .getByRole("heading", { name: "Ready to share" })
     .waitFor({ timeout: 20000 });
@@ -88,7 +86,7 @@ try {
   await page
     .getByRole("button", { name: "Delete A little moment worth sharing" })
     .click();
-  await page.getByText("Your next “you have to see this” goes here.").waitFor();
+  await page.getByText("No videos submitted from this browser yet.").waitFor();
   assert.deepEqual(errors, []);
   console.log(
     "PASS browser submission, playback, visitor access, mobile layout and deletion; screenshots in test-results/",

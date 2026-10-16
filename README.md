@@ -1,8 +1,10 @@
-# share.to
+# Share.me
 
 Paste a video link. Get a link anyone can watch, without an account on the original platform.
 
 A standalone, self-hosted Docker app inspired by [Yap’s media caching](https://github.com/urza/Yap). It uses yt-dlp to fetch videos, ffmpeg to prepare browser-compatible MP4s, and ASP.NET Core to serve the app and media. There is no database service, frontend build step, or external API account to configure.
+
+The interface defaults to dark mode, with a light-theme toggle that remembers your choice. Portrait, square, and landscape videos use their native aspect ratio and fit the screen.
 
 ## Run
 
@@ -34,16 +36,17 @@ The generic webpage extractor is disabled. Native HTTP/HTTPS downloads and suppo
 
 ## Configuration
 
-| Variable                   | Default      | Purpose                                            |
-| -------------------------- | ------------ | -------------------------------------------------- |
-| `PORT`                     | `8080`       | Host port                                          |
-| `BIND_ADDRESS`             | `0.0.0.0`    | Host address to listen on                          |
-| `PUBLIC_URL`               | empty        | Public origin for link-preview metadata            |
-| `MAX_FILE_MB`              | `250`        | Maximum final video size; also passed to yt-dlp    |
-| `MAX_STORAGE_MB`           | `10240`      | Media and metadata storage budget                  |
-| `MAX_DURATION_MINUTES`     | `20`         | Maximum video duration                             |
-| `DOWNLOAD_TIMEOUT_SECONDS` | `900`        | Total time allowed per job, including conversion   |
-| `YT_DLP_VERSION`           | `2026.08.19` | Pinned yt-dlp release used when building the image |
+| Variable                   | Default        | Purpose                                            |
+| -------------------------- | -------------- | -------------------------------------------------- |
+| `DATA_VOLUME`              | `shareme-data` | Docker volume used for videos and metadata         |
+| `PORT`                     | `8080`         | Host port                                          |
+| `BIND_ADDRESS`             | `0.0.0.0`      | Host address to listen on                          |
+| `PUBLIC_URL`               | empty          | Public origin for link-preview metadata            |
+| `MAX_FILE_MB`              | `250`          | Maximum final video size; also passed to yt-dlp    |
+| `MAX_STORAGE_MB`           | `10240`        | Media and metadata storage budget                  |
+| `MAX_DURATION_MINUTES`     | `20`           | Maximum video duration                             |
+| `DOWNLOAD_TIMEOUT_SECONDS` | `900`          | Total time allowed per job, including conversion   |
+| `YT_DLP_VERSION`           | `2026.08.19`   | Pinned yt-dlp release used when building the image |
 
 One worker processes up to 20 outstanding submissions. Submissions are limited to 10 per minute per connecting IP. Behind a reverse proxy, clients share that proxy’s limit; forwarded IP headers are deliberately not trusted. Completed and failed records are capped at 10,000. Failed records are small and can be deleted from browser history.
 
@@ -57,7 +60,7 @@ docker compose down          # Stops the app; keeps downloaded media
 docker compose up -d         # Starts it again
 ```
 
-Keep the `share-data` volume backed up: it contains both media and the records needed for share links. Stop the app while taking a filesystem backup. Do not run `docker compose down -v` unless you intend to delete all stored shares.
+Keep the `shareme-data` volume (or the volume selected by `DATA_VOLUME`) backed up: it contains both media and the records needed for share links. Stop the app while taking a filesystem backup. Do not run `docker compose down -v` unless you intend to delete all stored shares.
 
 When a platform changes, update `YT_DLP_VERSION` in `.env` to an available yt-dlp release and run `docker compose up -d --build`. The Docker build checks the binary against the release’s SHA-256 manifest. Rebuild periodically to pick up .NET and operating-system updates as well.
 
@@ -66,7 +69,7 @@ When a platform changes, update `YT_DLP_VERSION` in `.env` to an available yt-dl
 Install .NET 10, yt-dlp, ffmpeg/ffprobe, and Deno (or Node.js for YouTube challenges), then:
 
 ```sh
-dotnet run --project src/ShareTo --urls http://localhost:8080
+dotnet run --project src/ShareMe --urls http://localhost:8080
 ```
 
 `DATA_PATH` overrides the data directory for local runs; `YT_DLP_PATH` overrides the executable path. Production defaults are set by the image. Do not run multiple app processes against the same data directory.
@@ -89,3 +92,7 @@ These checks verify the app’s behavior, not ongoing compatibility with each ex
 ## Source reference
 
 Yap was inspected at commit `b5ff08be322391db168421aa5d6eb2568e2bd89c`. Its media cache established the approach to yt-dlp, duration/size limits, H.264 conversion, metadata persistence, and ffmpeg posters. The standalone service, queue, storage, proxy, API, and UI are implemented here without Yap’s chat runtime. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Upgrading from share.to
+
+Keep the original Docker volume and set `DATA_VOLUME=shareto_share-data` in `.env` before starting Share.me. Stop the original container first so the new container can bind to the same port. Existing share URLs and video records stay valid. Browser history and deletion tokens are read from the original storage key and migrated on the next history update; use the same host and port to retain access to that browser storage.

@@ -2,6 +2,17 @@ import { api, copyLink, stateLabel, mediaInfo } from "./shared.js";
 const $ = (id) => document.getElementById(id);
 const id = location.pathname.split("/")[2];
 let video;
+const player = $("player");
+function sizePlayer() {
+  if (player.videoWidth && player.videoHeight) {
+    player.style.setProperty(
+      "--video-ratio",
+      player.videoWidth / player.videoHeight,
+    );
+  }
+}
+player.addEventListener("loadedmetadata", sizePlayer);
+player.addEventListener("resize", sizePlayer);
 $("copy-share").onclick = () => copyLink(video.shareUrl, $("copy-status"));
 $("copy-direct").onclick = () => copyLink(video.mediaUrl, $("copy-status"));
 $("player").addEventListener("error", () => {
@@ -12,8 +23,8 @@ $("player").addEventListener("error", () => {
 async function refresh() {
   try {
     video = await api(`/api/videos/${encodeURIComponent(id || "")}`);
-    $("video-title").textContent = video.title || "A video for you.";
-    document.title = `${video.title || "A video for you"} — share.to`;
+    $("video-title").textContent = video.title || "Shared video";
+    document.title = `${video.title || "Shared video"} — Share.me`;
     if (video.status === "ready") {
       $("watch-status").hidden = true;
       $("player").hidden = false;
@@ -28,7 +39,7 @@ async function refresh() {
     $("watch-status").textContent =
       video.status === "failed"
         ? video.error
-        : `${stateLabel(video)}…\nYou’re in the right place. The video will appear here when it’s ready.`;
+        : `${stateLabel(video)}…\nThis page will update automatically when the download is complete.`;
     if (video.status !== "failed") setTimeout(refresh, 2000);
   } catch (error) {
     $("watch-status").textContent =

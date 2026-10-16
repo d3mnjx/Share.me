@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace ShareTo;
+namespace ShareMe;
 
 // Every yt-dlp HTTP request (including redirects and CDN requests) goes through this
 // loopback-only proxy. Resolve once, reject non-public addresses, and connect to that

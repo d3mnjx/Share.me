@@ -20,7 +20,7 @@ export async function copyLink(path, status) {
   const url = new URL(path, location.origin).href;
   try {
     await navigator.clipboard.writeText(url);
-    status.textContent = "Link copied. Pass it along!";
+    status.textContent = "Link copied.";
   } catch {
     status.textContent = `Copy this link: ${url}`;
   }
@@ -29,7 +29,7 @@ export const stateLabel = (video) =>
   ({
     queued: "Waiting in the queue",
     downloading: `Downloading${video.progress > 0 ? ` · ${Math.round(video.progress)}%` : " your video"}`,
-    processing: "Getting it ready to play",
+    processing: "Preparing video for playback",
     ready: "Ready to share",
     failed: "Couldn’t save this video",
   })[video.status] || "Loading";

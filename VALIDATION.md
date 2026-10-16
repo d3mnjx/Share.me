@@ -31,3 +31,11 @@ The older yt-dlp test URL `https://www.youtube.com/watch?v=BaW_jenozKc` returned
 X, Instagram, Facebook, and TikTok were not independently tested with live posts. Their support depends on yt-dlp extractors and platform access from the deployment’s IP. No claim of universal platform compatibility is made.
 
 Browser screenshots are generated under ignored `test-results/`; they include desktop/mobile submission pages, the fixture watch page, and the live YouTube watch page. The deterministic tests use isolated temporary storage and do not contact social platforms.
+
+## Share.me rename, themes, and portrait playback
+
+The renamed .NET application and Docker image built successfully, and the full integration/browser suite passed again. The running service remains bound to `0.0.0.0:7543`. Checksums of the existing video records matched before and after the container migration; the original volume was retained.
+
+Browser checks confirmed dark mode is the default even with a light system preference, light mode persists across reloads and navigation to watch pages, theme switching works when browser storage is blocked, and CSS defaults to dark when JavaScript is disabled. Legacy browser history loaded successfully, and its original deletion token was retained when migrating to the new storage key.
+
+Generated portrait (9:16), landscape (16:9), and square videos kept their intrinsic aspect ratios and stayed centered within page and viewport bounds on desktop, phone, and rotated-phone layouts. The portrait checks were repeated after the theme update. These layout checks use local video fixtures and do not establish additional platform-download compatibility.

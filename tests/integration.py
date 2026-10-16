@@ -14,9 +14,9 @@ import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT = ROOT / 'src/ShareTo'
-subprocess.run(['dotnet', 'build', str(PROJECT / 'ShareTo.csproj'), '-c', 'Release', '--nologo'], check=True)
-temporary = tempfile.TemporaryDirectory(prefix='share-to-tests-')
+PROJECT = ROOT / 'src/ShareMe'
+subprocess.run(['dotnet', 'build', str(PROJECT / 'ShareMe.csproj'), '-c', 'Release', '--nologo'], check=True)
+temporary = tempfile.TemporaryDirectory(prefix='share-me-tests-')
 work = Path(temporary.name)
 fixture = work / 'fixture.webm'
 subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=24', '-f', 'lavfi', '-i', 'sine=frequency=440',
@@ -44,7 +44,7 @@ def request(path, method='GET', data=None, headers=None):
 
 def start():
     global process
-    process = subprocess.Popen(['dotnet', str(PROJECT / 'bin/Release/net10.0/ShareTo.dll')], cwd=PROJECT, env=env, stdout=log, stderr=log, start_new_session=True)
+    process = subprocess.Popen(['dotnet', str(PROJECT / 'bin/Release/net10.0/ShareMe.dll')], cwd=PROJECT, env=env, stdout=log, stderr=log, start_new_session=True)
     for _ in range(100):
         try:
             if request('/healthz')[0] == 200: return

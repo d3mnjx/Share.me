@@ -9,7 +9,11 @@ import {
 const $ = (id) => document.getElementById(id);
 let history;
 try {
-  history = JSON.parse(localStorage.getItem("share.to.history") || "[]");
+  history = JSON.parse(
+    localStorage.getItem("share.me.history") ||
+      localStorage.getItem("share.to.history") ||
+      "[]",
+  );
   if (!Array.isArray(history)) history = [];
 } catch {
   history = [];
@@ -22,7 +26,9 @@ let currentVideo = null;
 const cache = new Map();
 function saveHistory() {
   try {
-    localStorage.setItem("share.to.history", JSON.stringify(history));
+    // Retain submission ownership when upgrading from the original app name.
+    localStorage.setItem("share.me.history", JSON.stringify(history));
+    localStorage.removeItem("share.to.history");
   } catch {
     $("form-error").textContent =
       "Browser storage is unavailable. Keep your share link; history and deletion controls may be lost when this page closes.";
@@ -85,7 +91,7 @@ function renderRecent() {
     const empty = element("div", "empty-state");
     empty.append(
       element("span", "", "↗"),
-      element("p", "", "Your next “you have to see this” goes here."),
+      element("p", "", "No videos submitted from this browser yet."),
     );
     $("recent-list").replaceChildren(empty);
     return;
@@ -217,7 +223,7 @@ $("share-form").addEventListener("submit", async (event) => {
     $("form-error").hidden = false;
   } finally {
     $("submit-button").disabled = false;
-    $("submit-button").textContent = "Make it shareable ↗";
+    $("submit-button").textContent = "Download & share ↗";
   }
 });
 api("/api/config")

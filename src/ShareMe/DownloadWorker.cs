@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-namespace ShareTo;
+namespace ShareMe;
 
 public sealed class DownloadWorker(VideoStore store, AppSettings settings, PublicProxy proxy, ILogger<DownloadWorker> logger) : BackgroundService
 {

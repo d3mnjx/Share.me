@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 
-namespace ShareTo;
+namespace ShareMe;
 
 public sealed class AppSettings
 {
