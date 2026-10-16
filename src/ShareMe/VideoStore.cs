@@ -9,6 +9,7 @@ public sealed class AppSettings
 {
     public string DataPath { get; } = Path.GetFullPath(Environment.GetEnvironmentVariable("DATA_PATH") ?? "data");
     public string Downloader { get; } = Environment.GetEnvironmentVariable("YT_DLP_PATH") ?? "yt-dlp";
+    public string? ApiToken { get; } = Environment.GetEnvironmentVariable("API_TOKEN");
     public string? PublicUrl { get; } = ReadPublicUrl();
     public long MaxFileBytes { get; } = Number("MAX_FILE_MB", 250, 1, 4096) * 1024L * 1024;
     public long MaxStorageBytes { get; } = Number("MAX_STORAGE_MB", 10240, 10, 1048576) * 1024L * 1024;
@@ -27,7 +28,8 @@ public sealed class AppSettings
 }
 
 public sealed record Video(string Id, string SourceUrl, string DeleteHash, DateTimeOffset CreatedAt,
-    string Status = "queued", string? Title = null, double Progress = 0, string? Error = null, long Bytes = 0, double Duration = 0)
+    string Status = "queued", string? Title = null, double Progress = 0, string? Error = null, long Bytes = 0, double Duration = 0,
+    string? Description = null, string? Author = null, int Width = 0, int Height = 0, int PosterWidth = 0, int PosterHeight = 0)
 {
     public object Public() => new
     {
@@ -40,6 +42,10 @@ public sealed record Video(string Id, string SourceUrl, string DeleteHash, DateT
         Error,
         Bytes,
         Duration,
+        Description,
+        Author,
+        Width,
+        Height,
         shareUrl = $"/s/{Id}",
         mediaUrl = Status == "ready" ? $"/m/{Id}.mp4" : null,
         posterUrl = Status == "ready" ? $"/p/{Id}.jpg" : null
@@ -98,6 +104,10 @@ public sealed class VideoStore
         lock (gate) return DirectoryBytes(Path.Combine(settings.DataPath, "videos"));
     }
     public Video? Get(string id) { lock (gate) return videos.GetValueOrDefault(id); }
+    public (Video[] Items, int Total) List(int offset, int limit)
+    {
+        lock (gate) return (videos.Values.OrderByDescending(v => v.CreatedAt).Skip(offset).Take(limit).ToArray(), videos.Count);
+    }
     public (Video, string) Create(string url)
     {
         lock (gate)

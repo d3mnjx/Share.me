@@ -12,6 +12,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from html.parser import HTMLParser
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / 'src/ShareMe'
@@ -28,9 +29,24 @@ with socket.socket() as sock:
     port = sock.getsockname()[1]
 base = f'http://127.0.0.1:{port}'
 env = {**os.environ, 'ASPNETCORE_URLS': base, 'DATA_PATH': str(work / 'data'), 'YT_DLP_PATH': str(fake), 'FAKE_MEDIA': str(fixture),
-       'MAX_FILE_MB': '1', 'PUBLIC_URL': 'https://share.example', 'DOWNLOAD_TIMEOUT_SECONDS': '10'}
+       'MAX_FILE_MB': '1', 'PUBLIC_URL': 'https://share.example', 'DOWNLOAD_TIMEOUT_SECONDS': '10', 'API_TOKEN': 'integration-token'}
 log = open(work / 'server.log', 'w+')
 process = None
+auth = {'Authorization': 'Bearer integration-token'}
+
+class Preview(HTMLParser):
+    def __init__(self, html):
+        super().__init__()
+        self.meta = {}
+        self.canonical = None
+        self.scripts = []
+        self.feed(html.decode())
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == 'meta': self.meta[attrs.get('property') or attrs.get('name')] = attrs.get('content')
+        if tag == 'link' and attrs.get('rel') == 'canonical': self.canonical = attrs['href']
+        if tag == 'script': self.scripts.append(attrs.get('src'))
 
 def request(path, method='GET', data=None, headers=None):
     body = json.dumps(data).encode() if data is not None else None
@@ -90,6 +106,22 @@ try:
     assert request(video['posterUrl'])[0] == 200
     assert request(video['shareUrl'])[0] == 200
     assert b'https://share.example/m/' in request(video['shareUrl'])[2]
+    preview = Preview(request(video['shareUrl'])[2])
+    assert preview.meta['og:title'] == video['title']
+    assert preview.meta['og:description'] == 'A sample description with "quotes" & details.'
+    assert preview.meta['author'] == 'Sample author'
+    assert preview.canonical == preview.meta['og:url'] == 'https://share.example' + video['shareUrl']
+    assert preview.meta['og:image'] == preview.meta['og:image:secure_url'] == preview.meta['twitter:image'] == 'https://share.example' + video['posterUrl']
+    assert preview.meta['og:image:type'] == 'image/jpeg' and preview.meta['og:image:width'] == '640' and preview.meta['og:image:height'] == '360'
+    assert preview.meta['og:video:width'] == '320' and preview.meta['og:video:height'] == '180'
+    assert preview.meta['og:video:secure_url'] == 'https://share.example' + video['mediaUrl']
+    assert preview.meta['twitter:card'] == 'summary_large_image'
+    assert video['title'].encode() in request(video['shareUrl'])[2].split(b'</title>')[0]
+    assert request(video['shareUrl'], 'HEAD')[0] == 200
+    assert request(video['posterUrl'], 'HEAD')[0] == 200
+    assert request(video['mediaUrl'], 'HEAD')[0] == 200
+    assert 'og:image' not in Preview(request('/s/missing')[2]).meta
+    print('PASS server-rendered preview metadata, absolute URLs, media dimensions and HEAD requests', flush=True)
     assert 'DeleteHash' not in request('/api/videos/' + video['id'])[2]
     media_path = work / 'data/videos' / video['id'] / 'video.mp4'
     codecs = subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_name', '-of', 'json', str(media_path)], text=True)
@@ -98,6 +130,7 @@ try:
     # Restart also resets the per-process request limiter for the remaining cases.
     stop(); start()
     assert request('/api/videos/' + video['id'])[2]['status'] == 'ready'
+    assert Preview(request(video['shareUrl'])[2]).meta['og:description'] == preview.meta['og:description']
     assert request(video['mediaUrl'])[0] == 200
     for mode in ['too-long', 'live', 'fail', 'oversize']:
         result = submit(mode)
@@ -109,6 +142,14 @@ try:
     escaped = wait(submit('xss'))
     assert escaped['status'] == 'ready', escaped
     assert b'&lt;img src=x onerror=alert(1)&gt;' in request(escaped['shareUrl'])[2]
+    malicious = Preview(request(escaped['shareUrl'])[2])
+    assert malicious.meta['og:description'] == '\"><script>alert("preview")</script>'
+    assert all(malicious.scripts), 'Source text injected an inline script'
+    # Simulate a record written before preview fields were introduced.
+    legacy_path = work / 'data/videos' / unknown['id'] / 'record.json'
+    legacy = json.loads(legacy_path.read_text())
+    for field in ['Description', 'Author', 'Width', 'Height', 'PosterWidth', 'PosterHeight']: legacy.pop(field, None)
+    legacy_path.write_text(json.dumps(legacy))
     print('PASS persistence; duration/live/size/failure handling; null duration; metadata escaping', flush=True)
     hang = submit('hang')
     failed = wait(hang)
@@ -125,11 +166,43 @@ try:
     assert request('/api/videos/' + video['id'], 'DELETE', headers={'Authorization': 'Bearer ' + ready['deleteToken']})[0] == 204
     assert request(video['mediaUrl'])[0] == 404 and request(video['shareUrl'])[0] == 404
     print('PASS timeout cleanup, crash recovery and deletion ownership', flush=True)
+    assert request('/api/v1/videos')[0] == 401
+    assert request('/api/v1/videos', headers={'Authorization': 'Bearer incorrect'})[0] == 401
+    assert request('/api/v1/videos', headers=auth)[2]['total'] > 0
+    listing = request('/api/v1/videos?limit=1&offset=0', headers=auth)[2]
+    assert len(listing['videos']) == 1 and 'deleteHash' not in listing['videos'][0]
+    assert request('/api/v1/videos?limit=0', headers=auth)[0] == 400
+    assert request('/api/v1/config', headers=auth)[2]['maxFileMb'] == 1
+    code, headers, created = request('/api/v1/videos', 'POST', {'url': 'https://example.com/api'}, headers=auth)
+    assert code == 202 and headers['Location'] == '/api/v1/videos/' + created['video']['id']
+    api_video = wait(created)
+    assert api_video['status'] == 'ready'
+    api_path = '/api/v1/videos/' + api_video['id']
+    assert request(api_path, headers=auth)[2]['status'] == 'ready'
+    assert request(api_path + '/media', headers=auth)[0] == 200
+    assert request(api_path + '/poster', headers=auth)[0] == 200
+    assert request(api_path + '/media', headers={**auth, 'Range': 'bytes=0-99'})[0] == 206
+    assert request(api_path, 'DELETE')[0] == 401
+    assert request(api_path, 'DELETE', headers=auth)[0] == 204
+    assert request(api_video['shareUrl'])[0] == 404
+    print('PASS authenticated API submission, listing, status, downloads, ranges and deletion; public UI remains open', flush=True)
     if os.getenv('BROWSER_TESTS') == '1':
         subprocess.run(['node', 'tests/browser.mjs', base], cwd=ROOT, check=True)
     for _ in range(11): result = request('/api/videos', 'POST', {'url': 'invalid'})
     assert result[0] == 429
     print('PASS submission rate limit', flush=True)
+    stop()
+    env['PUBLIC_URL'] = ''
+    env['API_TOKEN'] = ''
+    start()
+    legacy_page = Preview(request(unknown['shareUrl'], headers={'Host': 'share.example:7543', 'X-Forwarded-Host': 'untrusted.invalid', 'X-Forwarded-Proto': 'https'})[2])
+    assert legacy_page.meta['og:url'] == 'http://share.example:7543' + unknown['shareUrl']
+    assert legacy_page.meta['og:image'] == 'http://share.example:7543' + unknown['posterUrl']
+    assert 'og:image:secure_url' not in legacy_page.meta
+    assert legacy_page.meta['og:description'].startswith('Video from example.com.')
+    assert request('/api/v1/videos', headers=auth)[0] == 503
+    assert request('/api/videos/' + unknown['id'])[0] == 200
+    print('PASS legacy records, request-origin preview fallback and disabled-token API with public UI', flush=True)
 finally:
     stop()
     log.flush(); log.seek(0)

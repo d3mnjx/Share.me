@@ -44,7 +44,14 @@ public sealed class DownloadWorker(VideoStore store, AppSettings settings, Publi
         if (info.TryGetProperty("is_live", out var live) && live.ValueKind == JsonValueKind.True)
             throw new DownloadException("Live streams are not supported. Try again once the stream has ended.");
         var title = info.TryGetProperty("title", out var titleValue) ? titleValue.GetString() : null;
-        store.Update(id, v => v with { Title = title is { Length: > 300 } ? title[..300] : title ?? "Shared video", Duration = duration });
+        string? Field(string name) => info.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.String ? field.GetString() : null;
+        store.Update(id, v => v with
+        {
+            Title = SharePage.Text(title, 300) ?? "Shared video",
+            Description = SharePage.Text(Field("description"), 500),
+            Author = SharePage.Text(Field("uploader") ?? Field("creator") ?? Field("channel"), 120),
+            Duration = duration
+        });
         // Only native HTTP-based downloaders are allowed. RTMP/RTSP and ffmpeg's
         // network downloader would otherwise escape the checked HTTP proxy.
         const string protocol = "[protocol~='^(https?|m3u8_native|http_dash_segments)$']";
@@ -88,8 +95,28 @@ public sealed class DownloadWorker(VideoStore store, AppSettings settings, Publi
         if (bytes > settings.MaxFileBytes) throw new DownloadException("The converted video exceeds the file size limit.");
         await Run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-protocol_whitelist", "file,pipe", "-i", store.FilePath(id, "video.mp4"),
             "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "3", store.FilePath(id, "poster.jpg")], folder, id, token);
+        async Task<(int Width, int Height)> Dimensions(string file)
+        {
+            var json = await Run("ffprobe", ["-v", "error", "-protocol_whitelist", "file,pipe", "-select_streams", "v:0",
+                "-show_entries", "stream=width,height", "-of", "json", store.FilePath(id, file)], folder, id, token);
+            using var document = JsonDocument.Parse(json);
+            var stream = document.RootElement.GetProperty("streams")[0];
+            return (stream.GetProperty("width").GetInt32(), stream.GetProperty("height").GetInt32());
+        }
+        var (width, height) = await Dimensions("video.mp4");
+        var (posterWidth, posterHeight) = await Dimensions("poster.jpg");
         if (store.UsedBytes() > settings.MaxStorageBytes) throw new DownloadException("The download exceeded the available storage limit.");
-        store.Update(id, v => v with { Status = "ready", Progress = 100, Bytes = bytes, Duration = duration });
+        store.Update(id, v => v with
+        {
+            Status = "ready",
+            Progress = 100,
+            Bytes = bytes,
+            Duration = duration,
+            Width = width,
+            Height = height,
+            PosterWidth = posterWidth,
+            PosterHeight = posterHeight
+        });
     }
     private async Task<string> Run(string executable, IEnumerable<string> arguments, string folder, string id, CancellationToken token, Action<string>? onLine = null)
     {

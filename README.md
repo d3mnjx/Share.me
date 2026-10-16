@@ -6,6 +6,8 @@ A standalone, self-hosted Docker app inspired by [Yap’s media caching](https:/
 
 The interface defaults to dark mode, with a light-theme toggle that remembers your choice. Portrait, square, and landscape videos use their native aspect ratio and fit the screen.
 
+The token-authenticated integration API supports submission, polling, listing, downloads, and deletion. Configure `API_TOKEN` through Docker; see [API.md](API.md) for endpoints and curl examples. The web interface remains open.
+
 ## Run
 
 ```sh
@@ -42,6 +44,7 @@ The generic webpage extractor is disabled. Native HTTP/HTTPS downloads and suppo
 | `PORT`                     | `8080`         | Host port                                          |
 | `BIND_ADDRESS`             | `0.0.0.0`      | Host address to listen on                          |
 | `PUBLIC_URL`               | empty          | Public origin for link-preview metadata            |
+| `API_TOKEN`                | empty          | Bearer token for `/api/v1`; disabled when unset    |
 | `MAX_FILE_MB`              | `250`          | Maximum final video size; also passed to yt-dlp    |
 | `MAX_STORAGE_MB`           | `10240`        | Media and metadata storage budget                  |
 | `MAX_DURATION_MINUTES`     | `20`           | Maximum video duration                             |
@@ -88,6 +91,8 @@ On filesystems that prohibit symlinks, use `npm ci --no-bin-links`.
 The integration suite uses a deterministic yt-dlp fixture and real ffprobe/ffmpeg. It covers URL validation, private-destination rejection (HTTP and CONNECT), conversion, playback ranges, downloads, posters, persistence, size/duration limits, timeout cleanup, interrupted-job recovery, metadata escaping, deletion authorization, and rate limiting. Browser checks exercise submission, actual video playback, access from a fresh browser, mobile layout, and deletion. Screenshots are written to ignored `test-results/`.
 
 These checks verify the app’s behavior, not ongoing compatibility with each external platform. Live platform checks and their results are recorded in [VALIDATION.md](VALIDATION.md).
+
+Messenger previews are rendered in the watch page's HTML. For Signal, use a reachable HTTPS address and set `PUBLIC_URL` accordingly. A local HTTP address is sufficient to use the app, but not to generate a Signal preview. See [preview details](API.md#messenger-previews).
 
 ## Source reference
 

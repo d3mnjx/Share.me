@@ -10,6 +10,7 @@ services:
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${PORT:-8080}:8080"
     environment:
+      API_TOKEN: ${API_TOKEN:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       MAX_FILE_MB: ${MAX_FILE_MB:-250}
       MAX_STORAGE_MB: ${MAX_STORAGE_MB:-10240}

@@ -39,3 +39,11 @@ The renamed .NET application and Docker image built successfully, and the full i
 Browser checks confirmed dark mode is the default even with a light system preference, light mode persists across reloads and navigation to watch pages, theme switching works when browser storage is blocked, and CSS defaults to dark when JavaScript is disabled. Legacy browser history loaded successfully, and its original deletion token was retained when migrating to the new storage key.
 
 Generated portrait (9:16), landscape (16:9), and square videos kept their intrinsic aspect ratios and stayed centered within page and viewport bounds on desktop, phone, and rotated-phone layouts. The portrait checks were repeated after the theme update. These layout checks use local video fixtures and do not establish additional platform-download compatibility.
+
+## Integration API and messenger metadata
+
+The full integration/browser suite passed with the compact interface, `/api/v1`, and server-rendered previews. API checks cover disabled, missing, incorrect, and valid tokens; creation and status URLs; pagination; media/thumbnail access; byte ranges; and authenticated deletion. The public UI remains usable with API authentication enabled.
+
+Preview checks parse the initial HTML without JavaScript and verify source titles/descriptions/authors, canonical and absolute media URLs, Open Graph and Twitter/X fields, actual media dimensions, GET/HEAD responses, persisted metadata, escaping, and old records without the new fields. When `PUBLIC_URL` is absent, metadata uses the request origin and ignores untrusted forwarding headers. Existing production record checksums were unchanged during deployment, and the existing share's JPEG and core preview tags were verified over HTTP.
+
+Signal's current Android source was checked for required Open Graph fields and URL eligibility. No live Signal message was sent: the local instance uses HTTP, whereas Signal preview URLs must use HTTPS and must not be private/local IP addresses. Metadata support does not establish a live messenger preview until the app is deployed at a suitable reachable HTTPS origin.
