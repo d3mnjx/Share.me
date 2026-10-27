@@ -5,7 +5,7 @@ services:
     build:
       context: .
       args:
-        YT_DLP_VERSION: ${YT_DLP_VERSION:-2026.08.19}
+        YT_DLP_VERSION: ${YT_DLP_VERSION:-2026.10.26}
     image: share-me:local
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${PORT:-8080}:8080"

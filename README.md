@@ -83,7 +83,7 @@ The generic webpage extractor is disabled. Native HTTP/HTTPS downloads and suppo
 | `MAX_STORED_VIDEOS`        | `66`           | Shares to retain; oldest finished shares removed   |
 | `MAX_DURATION_MINUTES`     | `20`           | Maximum video duration                             |
 | `DOWNLOAD_TIMEOUT_SECONDS` | `900`          | Total time allowed per job, including conversion   |
-| `YT_DLP_VERSION`           | `2026.08.19`   | Pinned yt-dlp release used when building the image |
+| `YT_DLP_VERSION`           | `2026.10.26`   | Pinned yt-dlp release used when building the image |
 
 The UI and integration API share one daily allowance, defaulting to 23 accepted submissions per UTC calendar day. Accepted jobs count even if downloading fails or the share is later deleted. Invalid requests and rejected submissions do not count. The counter is stored in the data volume and survives restarts; the allowance resets at midnight UTC. Requests above the limit return HTTP 429 with a reset time and `Retry-After` header.
 
@@ -107,7 +107,7 @@ When a platform changes, update `YT_DLP_VERSION` in `.env` to an available yt-dl
 
 ## Local development
 
-Install .NET 10, yt-dlp, ffmpeg/ffprobe, and Deno (or Node.js for YouTube challenges), then:
+Install the .NET 10 SDK (10.0.403 or later, which carries the October 2026 Brotli fix in runtime 10.0.14), yt-dlp, ffmpeg/ffprobe, and Deno (or Node.js for YouTube challenges), then:
 
 ```sh
 dotnet run --project src/ShareMe --urls http://localhost:8080

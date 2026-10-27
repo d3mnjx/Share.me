@@ -1,13 +1,14 @@
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.403 AS build
 WORKDIR /src
+COPY global.json ./
 COPY src/ShareMe/ShareMe.csproj src/ShareMe/
 RUN dotnet restore src/ShareMe/ShareMe.csproj
 COPY src/ShareMe/ src/ShareMe/
 RUN dotnet publish src/ShareMe/ShareMe.csproj -c Release --no-restore -o /out /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.14
 ARG TARGETARCH
-ARG YT_DLP_VERSION=2026.08.19
+ARG YT_DLP_VERSION=2026.10.26
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg \
     && case "${TARGETARCH}" in amd64) YTDLP_ASSET=yt-dlp_linux ;; arm64) YTDLP_ASSET=yt-dlp_linux_aarch64 ;; *) exit 1 ;; esac \
     && curl -fSL "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/${YTDLP_ASSET}" -o "/tmp/${YTDLP_ASSET}" \
